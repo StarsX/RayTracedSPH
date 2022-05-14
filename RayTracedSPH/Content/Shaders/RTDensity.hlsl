@@ -2,7 +2,7 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#include "Common.hlsli"
+#include "RTCommon.hlsli"
 
 //--------------------------------------------------------------------------------------
 // Structs
@@ -51,7 +51,7 @@ void intersectionMain()
 	pointPos.z += g_smoothRadius * 0.5;
 #endif
 
-	const Particle particle = g_roParticles[InstanceIndex()];
+	const Particle particle = g_roParticles[PrimitiveIndex()];
 	const float3 disp = particle.Pos - pointPos;
 	const float r_sq = dot(disp, disp);
 	if (r_sq < g_h_sq)
@@ -72,7 +72,7 @@ void anyHitMain(inout RayPayload payload, HitAttributes attr)
 	// g_densityCoef = particleMass * 315.0f / (64.0f * PI * g_smoothRadius^9)
 	const float d_sq = g_h_sq - attr.R_sq;
 
-	payload.Density += g_cbSim.DensityCoef * d_sq * d_sq * d_sq;
+	payload.Density += g_densityCoef * d_sq * d_sq * d_sq;
 
 	IgnoreHit();
 }

@@ -108,5 +108,8 @@
     <None Include="Content\Shaders\Common.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Content\Shaders\RTCommon.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
