@@ -155,11 +155,14 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </EntryPointName>
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(ProjectDir)..\Bin\dxc.exe" /Zi /Od /Fo"$(OutDir)%(Filename).cso" /T"lib_6_3" /nologo "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(ProjectDir)..\Bin\dxc.exe" /Zi /Od /Fo"$(OutDir)%(Filename).cso" /T"lib_6_3" /nologo "%(FullPath)" /Vd</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(ProjectDir)..\Bin\dxc.exe" /Fo"$(OutDir)%(Filename).cso" /T"lib_6_3" /nologo "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(ProjectDir)..\Bin\dxc.exe" /Fo"$(OutDir)%(Filename).cso" /T"lib_6_3" /nologo "%(FullPath)" /Vd</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Content\Shaders\Common.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

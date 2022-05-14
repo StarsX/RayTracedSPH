@@ -104,4 +104,9 @@
       <Filter>Shaders</Filter>
     </CustomBuild>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Content\Shaders\Common.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
 </Project>
