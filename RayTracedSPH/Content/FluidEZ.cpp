@@ -13,7 +13,6 @@ const wchar_t* FluidEZ::HitGroupName = L"hitGroup";
 const wchar_t* FluidEZ::RaygenShaderName = L"raygenMain";
 const wchar_t* FluidEZ::IntersectionShaderName = L"intersectionMain";
 const wchar_t* FluidEZ::AnyHitShaderName = L"anyHitMain";
-const wchar_t* FluidEZ::ClosestHitShaderName = L"closestHitMain";
 const wchar_t* FluidEZ::MissShaderName = L"missMain";
 
 FluidEZ::FluidEZ() :
@@ -27,15 +26,23 @@ FluidEZ::~FluidEZ()
 }
 
 bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, uint32_t height,
-	Format rtFormat, Format dsFormat, vector<Resource::uptr>& uploaders, GeometryBuffer* pGeometry)
+	Format rtFormat, Format dsFormat, vector<Resource::uptr>& uploaders,
+	GeometryBuffer* pGeometry, uint32_t numParticles)
 {
 	const auto pDevice = pCommandList->GetRTDevice();
 
 	m_viewport.x = static_cast<float>(width);
 	m_viewport.y = static_cast<float>(height);
+	m_numParticles = numParticles;
+
+	// Create resources
+	createParticleBuffer();
+	createConstBuffer();
+
+	// Create density buffer
 
 	//XUSG_N_RETURN(buildAccelerationStructures(pCommandList, pDevice, pGeometry), false);
-	//XUSG_N_RETURN(createShaders(), false);
+	XUSG_N_RETURN(createShaders(), false);
 
 	return true;
 }
@@ -59,6 +66,28 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
 	RenderTarget* pRenderTarget, DepthStencil* pDepthStencil)
 {
+}
+
+bool FluidEZ::createParticleBuffer()
+{
+	// Create buffer
+
+	// Init data
+
+	// Upload data
+
+	return true;
+}
+
+bool FluidEZ::createConstBuffer()
+{
+	// Create buffer
+
+	// Init data
+
+	// Upload data
+
+	return true;
 }
 
 bool FluidEZ::createShaders()
@@ -109,7 +138,7 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList, uint8_t 
 {
 	// Set pipeline state
 	pCommandList->RTSetShaderLibrary(m_shaders[RT_DENSITY]);
-	pCommandList->RTSetHitGroup(0, HitGroupName, ClosestHitShaderName);
+	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName);
 	// ...
 	pCommandList->RTSetShaderConfig(sizeof(XMFLOAT4), sizeof(XMFLOAT2));
 	pCommandList->RTSetMaxRecursionDepth(1);
