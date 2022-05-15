@@ -16,7 +16,7 @@ public:
 
 	bool Init(XUSG::RayTracing::EZ::CommandList* pCommandList, uint32_t width, uint32_t height,
 		XUSG::Format rtFormat, XUSG::Format dsFormat, std::vector<XUSG::Resource::uptr>& uploaders,
-		XUSG::RayTracing::GeometryBuffer* pGeometry);
+		XUSG::RayTracing::GeometryBuffer* pGeometry, uint32_t numParticles = 65536);
 
 	void UpdateFrame(uint8_t frameIndex, DirectX::CXMVECTOR eyePt, DirectX::CXMMATRIX viewProj);
 	void Render(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
@@ -28,6 +28,8 @@ public:
 	static const uint8_t FrameCount = 3;
 
 protected:
+	bool createParticleBuffer();
+	bool createConstBuffer();
 	bool createShaders();
 	bool buildAccelerationStructures(XUSG::RayTracing::EZ::CommandList* pCommandList,
 		const XUSG::RayTracing::Device* pDevice,
@@ -45,7 +47,6 @@ protected:
 	static const wchar_t* RaygenShaderName;
 	static const wchar_t* IntersectionShaderName;
 	static const wchar_t* AnyHitShaderName;
-	static const wchar_t* ClosestHitShaderName;
 	static const wchar_t* MissShaderName;
 
 	enum ShaderIndex : uint8_t
@@ -59,4 +60,6 @@ protected:
 	XUSG::Blob m_shaders[NUM_SHADER];
 
 	DirectX::XMFLOAT2		m_viewport;
+
+	uint32_t				m_numParticles;
 };
