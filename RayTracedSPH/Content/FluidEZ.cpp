@@ -15,11 +15,12 @@ const wchar_t* FluidEZ::IntersectionShaderName = L"intersectionMain";
 const wchar_t* FluidEZ::AnyHitShaderName = L"anyHitMain";
 const wchar_t* FluidEZ::MissShaderName = L"missMain";
 
-const float POOL_VOLUME_CENTER[3] = { 0.0f, 0.75f, 0.0f };
-const float POOL_VOLUME_DIM_SIZE = 0.5f;
-const float POOL_VOLUME_SIZE = POOL_VOLUME_DIM_SIZE * POOL_VOLUME_DIM_SIZE * POOL_VOLUME_DIM_SIZE;
-const float POOL_VOLUME_DENSITY = 1000.0f;
-const float POOL_VOLUME_MASS = POOL_VOLUME_SIZE * POOL_VOLUME_DENSITY;
+const float POOL_VOLUME_DIM = 1.0f;
+const float POOL_VOLUME = POOL_VOLUME_DIM * POOL_VOLUME_DIM * POOL_VOLUME_DIM;
+const float INIT_PARTICLE_VOLUME_CENTER[3] = { 0.0f, 0.75f, 0.0f };
+const float INIT_PARTICLE_VOLUME_DIM = 0.5f;
+const float PARTICLE_REST_DENSITY = 1000.0f;
+const float PARTICLE_REST_MASS = INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * PARTICLE_REST_DENSITY;
 
 struct CBSimulation
 {
@@ -111,9 +112,9 @@ bool FluidEZ::createParticleBuffer(RayTracing::EZ::CommandList* pCommandList, ve
 		float x = (float)(i / sliceSize % dimSize) / dimSize;
 		float z = (float)(i / sliceSize / dimSize) / dimSize;
 		float y = (float)(i % sliceSize / dimSize) / dimSize;
-		x = POOL_VOLUME_DIM_SIZE * (x - 0.5f) + POOL_VOLUME_CENTER[0];
-		y = POOL_VOLUME_DIM_SIZE * (y - 0.5f) + POOL_VOLUME_CENTER[1];
-		z = POOL_VOLUME_DIM_SIZE * (z - 0.5f) + POOL_VOLUME_CENTER[2];
+		x = INIT_PARTICLE_VOLUME_DIM * (x - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[0];
+		y = INIT_PARTICLE_VOLUME_DIM * (y - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[1];
+		z = INIT_PARTICLE_VOLUME_DIM * (z - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[2];
 
 		particles[i].Pos = { x, y, z };
 		particles[i].Velocity = { 0.0f, 0.0f, 0.0f };
@@ -133,11 +134,11 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 
 	CBSimulation cbSimulation;
 	{
-		cbSimulation.smoothRadius = POOL_VOLUME_SIZE / 64;
+		cbSimulation.smoothRadius = POOL_VOLUME / 64;
 		cbSimulation.pressureStiffness = 200.0f;
-		cbSimulation.restDensity = POOL_VOLUME_DENSITY;
+		cbSimulation.restDensity = PARTICLE_REST_DENSITY;
 
-		const float mass = POOL_VOLUME_MASS / m_numParticles;
+		const float mass = PARTICLE_REST_MASS / m_numParticles;
 		const float viscosity = 0.1f;
 		cbSimulation.numParticles = m_numParticles;
 		cbSimulation.densityCoef = mass * 315.0f / (64.0f * XM_PI * pow(cbSimulation.smoothRadius, 9.0f));
