@@ -15,6 +15,29 @@ const wchar_t* FluidEZ::IntersectionShaderName = L"intersectionMain";
 const wchar_t* FluidEZ::AnyHitShaderName = L"anyHitMain";
 const wchar_t* FluidEZ::MissShaderName = L"missMain";
 
+const float POOL_VOLUME_CENTER[3] = { 0.0f, 0.75f, 0.0f };
+const float POOL_VOLUME_DIM_SIZE = 0.5f;
+const float POOL_VOLUME_SIZE = POOL_VOLUME_DIM_SIZE * POOL_VOLUME_DIM_SIZE * POOL_VOLUME_DIM_SIZE;
+const float POOL_VOLUME_DENSITY = 1000.0f;
+const float POOL_VOLUME_MASS = POOL_VOLUME_SIZE * POOL_VOLUME_DENSITY;
+
+struct CBSimulation
+{
+	uint32_t	numParticles;
+	float		smoothRadius;
+	float		pressureStiffness;
+	float		restDensity;
+	float		densityCoef;
+	float		pressureGradCoef;
+	float		viscosityLaplaceCoef;
+};
+
+struct Particle
+{
+	XMFLOAT3 Pos;
+	XMFLOAT3 Velocity;
+};
+
 FluidEZ::FluidEZ() :
 	m_instances()
 {
@@ -36,10 +59,14 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 	m_numParticles = numParticles;
 
 	// Create resources
-	createParticleBuffer();
-	createConstBuffer();
+	createParticleBuffer(pCommandList, uploaders);
+	createConstBuffer(pCommandList, uploaders);
 
 	// Create density buffer
+	m_densityBuffer = TypedBuffer::MakeUnique();
+	XUSG_N_RETURN(m_densityBuffer->Create(pCommandList->GetDevice(), m_numParticles, sizeof(float), Format::R32_FLOAT,
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
+	uploaders.emplace_back(Resource::MakeUnique());
 
 	//XUSG_N_RETURN(buildAccelerationStructures(pCommandList, pDevice, pGeometry), false);
 	XUSG_N_RETURN(createShaders(), false);
@@ -68,26 +95,58 @@ void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frame
 {
 }
 
-bool FluidEZ::createParticleBuffer()
+bool FluidEZ::createParticleBuffer(RayTracing::EZ::CommandList* pCommandList, vector<Resource::uptr>& uploaders)
 {
-	// Create buffer
+	m_particleBuffer = StructuredBuffer::MakeUnique();
+	XUSG_N_RETURN(m_particleBuffer->Create(pCommandList->GetDevice(), m_numParticles, sizeof(Particle),
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
+	uploaders.emplace_back(Resource::MakeUnique());
 
-	// Init data
+	vector<Particle> particles(m_numParticles);
 
-	// Upload data
+	const uint32_t dimSize = static_cast<uint32_t>(ceil(std::cbrt(m_numParticles)));
+	const uint32_t sliceSize = dimSize * dimSize;
+	for (uint32_t i = 0; i < m_numParticles; ++i)
+	{
+		float x = (float)(i / sliceSize % dimSize) / dimSize;
+		float z = (float)(i / sliceSize / dimSize) / dimSize;
+		float y = (float)(i % sliceSize / dimSize) / dimSize;
+		x = POOL_VOLUME_DIM_SIZE * (x - 0.5f) + POOL_VOLUME_CENTER[0];
+		y = POOL_VOLUME_DIM_SIZE * (y - 0.5f) + POOL_VOLUME_CENTER[1];
+		z = POOL_VOLUME_DIM_SIZE * (z - 0.5f) + POOL_VOLUME_CENTER[2];
+
+		particles[i].Pos = { x, y, z };
+		particles[i].Velocity = { 0.0f, 0.0f, 0.0f };
+	}
+
+	XUSG_N_RETURN(m_particleBuffer->Upload(pCommandList->AsCommandList(), uploaders.back().get(), particles.data(),
+		sizeof(Particle) * m_numParticles), false);
 
 	return true;
 }
 
-bool FluidEZ::createConstBuffer()
+bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList, vector<Resource::uptr>& uploaders)
 {
-	// Create buffer
+	m_cbSimulation = ConstantBuffer::MakeUnique();
+	XUSG_N_RETURN(m_cbSimulation->Create(pCommandList->GetDevice(), sizeof(CBSimulation), FrameCount,
+		nullptr, MemoryType::DEFAULT), false);
 
-	// Init data
+	CBSimulation cbSimulation;
+	{
+		cbSimulation.smoothRadius = POOL_VOLUME_SIZE / 64;
+		cbSimulation.pressureStiffness = 200.0f;
+		cbSimulation.restDensity = POOL_VOLUME_DENSITY;
 
-	// Upload data
+		const float mass = POOL_VOLUME_MASS / m_numParticles;
+		const float viscosity = 0.1f;
+		cbSimulation.numParticles = m_numParticles;
+		cbSimulation.densityCoef = mass * 315.0f / (64.0f * XM_PI * pow(cbSimulation.smoothRadius, 9.0f));
+		cbSimulation.pressureGradCoef = mass * -45.0f / (XM_PI * pow(cbSimulation.smoothRadius, 6.0f));
+		cbSimulation.viscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(cbSimulation.smoothRadius, 6.0f));
+	}
 
-	return true;
+	return m_cbSimulation->Upload(pCommandList->AsCommandList(), uploaders.back().get(), &cbSimulation,
+		sizeof(cbSimulation));
 }
 
 bool FluidEZ::createShaders()
@@ -147,8 +206,12 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList, uint8_t 
 	pCommandList->SetTopLevelAccelerationStructure(0, m_topLevelAS.get());
 
 	// Set UAV
+	const auto uav = XUSG::EZ::GetUAV(m_densityBuffer.get());
+	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav, 0);
 
 	// Set SRVs
+	const auto srv = XUSG::EZ::GetSRV(m_particleBuffer.get());
+	pCommandList->SetComputeResources(DescriptorType::SRV, 0, 1, &srv, 0);
 
 	// Dispatch command
 	//pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
