@@ -17,10 +17,10 @@ const wchar_t* FluidEZ::MissShaderName = L"missMain";
 
 const float POOL_VOLUME_DIM = 1.0f;
 const float POOL_VOLUME = POOL_VOLUME_DIM * POOL_VOLUME_DIM * POOL_VOLUME_DIM;
-const float INIT_PARTICLE_VOLUME_CENTER[3] = { 0.0f, 0.75f, 0.0f };
 const float INIT_PARTICLE_VOLUME_DIM = 0.5f;
+const float INIT_PARTICLE_VOLUME_CENTER[3] = { 0.0f, POOL_VOLUME_DIM - INIT_PARTICLE_VOLUME_DIM * 0.5f, 0.0f };
 const float PARTICLE_REST_DENSITY = 1000.0f;
-const float PARTICLE_REST_MASS = INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * PARTICLE_REST_DENSITY;
+const float PARTICLE_TOTAL_MASS = INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * PARTICLE_REST_DENSITY;
 
 struct CBSimulation
 {
@@ -138,7 +138,7 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 		cbSimulation.pressureStiffness = 200.0f;
 		cbSimulation.restDensity = PARTICLE_REST_DENSITY;
 
-		const float mass = PARTICLE_REST_MASS / m_numParticles;
+		const float mass = PARTICLE_TOTAL_MASS / m_numParticles;
 		const float viscosity = 0.1f;
 		cbSimulation.numParticles = m_numParticles;
 		cbSimulation.densityCoef = mass * 315.0f / (64.0f * XM_PI * pow(cbSimulation.smoothRadius, 9.0f));
