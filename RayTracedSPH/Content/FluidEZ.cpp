@@ -20,6 +20,7 @@ const float POOL_SPACE_DIVISION = 64.0f;
 const float INIT_PARTICLE_VOLUME_DIM = 0.5f;
 const float INIT_PARTICLE_VOLUME_CENTER[3] = { 0.0f, POOL_VOLUME_DIM - INIT_PARTICLE_VOLUME_DIM * 0.5f, 0.0f };
 const float PARTICLE_REST_DENSITY = 1000.0f;
+const float PARTICLE_SMOOTH_RADIUS = POOL_VOLUME_DIM / POOL_SPACE_DIVISION;
 
 struct CBSimulation
 {
@@ -74,7 +75,7 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
-	//XUSG_N_RETURN(buildAccelerationStructures(pCommandList, pDevice, pGeometry), false);
+	XUSG_N_RETURN(buildAccelerationStructures(pCommandList, pDevice, pGeometry), false);
 	XUSG_N_RETURN(createShaders(), false);
 
 	return true;
@@ -107,8 +108,7 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 	vector<Particle> particles(m_numParticles);
 	vector<ParticleAABB> particleAABBs(m_numParticles);
 
-	const float poolVolume = POOL_VOLUME_DIM * POOL_VOLUME_DIM * POOL_VOLUME_DIM;
-	const float radius = poolVolume / POOL_SPACE_DIVISION;
+	const float smoothRadius = PARTICLE_SMOOTH_RADIUS;
 	const auto dimSize = static_cast<uint32_t>(ceil(std::cbrt(m_numParticles)));
 	const auto sliceSize = dimSize * dimSize;
 	for (auto i = 0u; i < m_numParticles; ++i)
@@ -124,8 +124,8 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 		particles[i].Velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 		// AABB
-		particleAABBs[i].Min = XMFLOAT3(particles[i].Pos.x - radius, particles[i].Pos.y - radius, particles[i].Pos.z - radius);
-		particleAABBs[i].Max = XMFLOAT3(particles[i].Pos.x + radius, particles[i].Pos.y + radius, particles[i].Pos.z + radius);
+		particleAABBs[i].Min = XMFLOAT3(particles[i].Pos.x - smoothRadius, particles[i].Pos.y - smoothRadius, particles[i].Pos.z - smoothRadius);
+		particleAABBs[i].Max = XMFLOAT3(particles[i].Pos.x + smoothRadius, particles[i].Pos.y + smoothRadius, particles[i].Pos.z + smoothRadius);
 	}
 
 	// Create particle buffer
@@ -146,7 +146,7 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 
 	// upload data to the AABB buffer
 	XUSG_N_RETURN(m_particleAABBBuffer->Upload(pCommandList->AsCommandList(), uploaders.back().get(), particleAABBs.data(),
-		sizeof(ParticleAABB) * m_numParticles, 0, ResourceState::NON_PIXEL_SHADER_RESOURCE), false);
+		sizeof(ParticleAABB) * m_numParticles), false);
 
 	return true;
 }
@@ -161,8 +161,7 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 	// Init constant data
 	CBSimulation cbSimulation;
 	{
-		const float poolVolume = POOL_VOLUME_DIM * POOL_VOLUME_DIM * POOL_VOLUME_DIM;
-		cbSimulation.SmoothRadius = poolVolume / POOL_SPACE_DIVISION;
+		cbSimulation.SmoothRadius = PARTICLE_SMOOTH_RADIUS;
 		cbSimulation.PressureStiffness = 200.0f;
 		cbSimulation.RestDensity = PARTICLE_REST_DENSITY;
 
@@ -204,7 +203,7 @@ bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandL
 	// Prebuild
 	m_bottomLevelAS = BottomLevelAS::MakeUnique();
 	m_topLevelAS = TopLevelAS::MakeUnique();
-	XUSG_N_RETURN(pCommandList->PreBuildBLAS(m_bottomLevelAS.get(), 1, *pGeometry), false);
+	XUSG_N_RETURN(pCommandList->PreBuildBLAS(m_bottomLevelAS.get(), 1, *pGeometry, BuildFlag::PREFER_FAST_BUILD), false);
 	XUSG_N_RETURN(pCommandList->PreBuildTLAS(m_topLevelAS.get(), 1), false);
 
 	// Set instance
