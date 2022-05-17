@@ -105,7 +105,10 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 {
 	// Init data
 	vector<Particle> particles(m_numParticles);
+	vector<ParticleAABB> particleAABBs(m_numParticles);
 
+	const float poolVolume = POOL_VOLUME_DIM * POOL_VOLUME_DIM * POOL_VOLUME_DIM;
+	const float radius = poolVolume / POOL_SPACE_DIVISION;
 	const auto dimSize = static_cast<uint32_t>(ceil(std::cbrt(m_numParticles)));
 	const auto sliceSize = dimSize * dimSize;
 	for (auto i = 0u; i < m_numParticles; ++i)
@@ -121,7 +124,8 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 		particles[i].Velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 		// AABB
-
+		particleAABBs[i].Min = XMFLOAT3(particles[i].Pos.x - radius, particles[i].Pos.y - radius, particles[i].Pos.z - radius);
+		particleAABBs[i].Max = XMFLOAT3(particles[i].Pos.x + radius, particles[i].Pos.y + radius, particles[i].Pos.z + radius);
 	}
 
 	// Create particle buffer
@@ -135,8 +139,14 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 		sizeof(Particle) * m_numParticles), false);
 
 	// Create particle AABB buffer
+	m_particleAABBBuffer = VertexBuffer::MakeUnique();
+	XUSG_N_RETURN(m_particleAABBBuffer->Create(pCommandList->GetDevice(), m_numParticles, sizeof(ParticleAABB),
+		ResourceFlag::NONE, MemoryType::DEFAULT), false);
+	uploaders.emplace_back(Resource::MakeUnique());
 
 	// upload data to the AABB buffer
+	XUSG_N_RETURN(m_particleAABBBuffer->Upload(pCommandList->AsCommandList(), uploaders.back().get(), particleAABBs.data(),
+		sizeof(ParticleAABB) * m_numParticles, 0, ResourceState::NON_PIXEL_SHADER_RESOURCE), false);
 
 	return true;
 }
