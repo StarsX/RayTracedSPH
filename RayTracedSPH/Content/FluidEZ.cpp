@@ -16,27 +16,32 @@ const wchar_t* FluidEZ::AnyHitShaderName = L"anyHitMain";
 const wchar_t* FluidEZ::MissShaderName = L"missMain";
 
 const float POOL_VOLUME_DIM = 1.0f;
-const float POOL_VOLUME = POOL_VOLUME_DIM * POOL_VOLUME_DIM * POOL_VOLUME_DIM;
+const float POOL_SPACE_DIVISION = 64.0f;
 const float INIT_PARTICLE_VOLUME_DIM = 0.5f;
 const float INIT_PARTICLE_VOLUME_CENTER[3] = { 0.0f, POOL_VOLUME_DIM - INIT_PARTICLE_VOLUME_DIM * 0.5f, 0.0f };
 const float PARTICLE_REST_DENSITY = 1000.0f;
-const float PARTICLE_TOTAL_MASS = INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * PARTICLE_REST_DENSITY;
 
 struct CBSimulation
 {
-	uint32_t	numParticles;
-	float		smoothRadius;
-	float		pressureStiffness;
-	float		restDensity;
-	float		densityCoef;
-	float		pressureGradCoef;
-	float		viscosityLaplaceCoef;
+	uint32_t	NumParticles;
+	float		SmoothRadius;
+	float		PressureStiffness;
+	float		RestDensity;
+	float		DensityCoef;
+	float		PressureGradCoef;
+	float		ViscosityLaplaceCoef;
 };
 
 struct Particle
 {
 	XMFLOAT3 Pos;
 	XMFLOAT3 Velocity;
+};
+
+struct ParticleAABB
+{
+	XMFLOAT3 Min;
+	XMFLOAT3 Max;
 };
 
 FluidEZ::FluidEZ() :
@@ -59,8 +64,8 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 	m_viewport.y = static_cast<float>(height);
 	m_numParticles = numParticles;
 
-	// Create resources
-	createParticleBuffer(pCommandList, uploaders);
+	// Create resources with data upload
+	createParticleBuffers(pCommandList, uploaders);
 	createConstBuffer(pCommandList, uploaders);
 
 	// Create density buffer
@@ -96,58 +101,73 @@ void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frame
 {
 }
 
-bool FluidEZ::createParticleBuffer(RayTracing::EZ::CommandList* pCommandList, vector<Resource::uptr>& uploaders)
+bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, vector<Resource::uptr>& uploaders)
 {
+	// Init data
+	vector<Particle> particles(m_numParticles);
+
+	const auto dimSize = static_cast<uint32_t>(ceil(std::cbrt(m_numParticles)));
+	const auto sliceSize = dimSize * dimSize;
+	for (auto i = 0u; i < m_numParticles; ++i)
+	{
+		auto x = static_cast<float>((i / sliceSize % dimSize) / dimSize);
+		auto z = static_cast<float>((i / sliceSize / dimSize) / dimSize);
+		auto y = static_cast<float>((i % sliceSize / dimSize) / dimSize);
+		x = INIT_PARTICLE_VOLUME_DIM * (x - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[0];
+		y = INIT_PARTICLE_VOLUME_DIM * (y - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[1];
+		z = INIT_PARTICLE_VOLUME_DIM * (z - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[2];
+
+		particles[i].Pos = XMFLOAT3(x, y, z);
+		particles[i].Velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		// AABB
+
+	}
+
+	// Create particle buffer
 	m_particleBuffer = StructuredBuffer::MakeUnique();
 	XUSG_N_RETURN(m_particleBuffer->Create(pCommandList->GetDevice(), m_numParticles, sizeof(Particle),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
-	vector<Particle> particles(m_numParticles);
-
-	const uint32_t dimSize = static_cast<uint32_t>(ceil(std::cbrt(m_numParticles)));
-	const uint32_t sliceSize = dimSize * dimSize;
-	for (uint32_t i = 0; i < m_numParticles; ++i)
-	{
-		float x = (float)(i / sliceSize % dimSize) / dimSize;
-		float z = (float)(i / sliceSize / dimSize) / dimSize;
-		float y = (float)(i % sliceSize / dimSize) / dimSize;
-		x = INIT_PARTICLE_VOLUME_DIM * (x - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[0];
-		y = INIT_PARTICLE_VOLUME_DIM * (y - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[1];
-		z = INIT_PARTICLE_VOLUME_DIM * (z - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[2];
-
-		particles[i].Pos = { x, y, z };
-		particles[i].Velocity = { 0.0f, 0.0f, 0.0f };
-	}
-
+	// upload data to the particle buffer
 	XUSG_N_RETURN(m_particleBuffer->Upload(pCommandList->AsCommandList(), uploaders.back().get(), particles.data(),
 		sizeof(Particle) * m_numParticles), false);
+
+	// Create particle AABB buffer
+
+	// upload data to the AABB buffer
 
 	return true;
 }
 
 bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList, vector<Resource::uptr>& uploaders)
 {
+	// Create constant buffer
 	m_cbSimulation = ConstantBuffer::MakeUnique();
 	XUSG_N_RETURN(m_cbSimulation->Create(pCommandList->GetDevice(), sizeof(CBSimulation), FrameCount,
 		nullptr, MemoryType::DEFAULT), false);
 
+	// Init constant data
 	CBSimulation cbSimulation;
 	{
-		cbSimulation.smoothRadius = POOL_VOLUME / 64;
-		cbSimulation.pressureStiffness = 200.0f;
-		cbSimulation.restDensity = PARTICLE_REST_DENSITY;
+		const float poolVolume = POOL_VOLUME_DIM * POOL_VOLUME_DIM * POOL_VOLUME_DIM;
+		cbSimulation.SmoothRadius = poolVolume / POOL_SPACE_DIVISION;
+		cbSimulation.PressureStiffness = 200.0f;
+		cbSimulation.RestDensity = PARTICLE_REST_DENSITY;
 
-		const float mass = PARTICLE_TOTAL_MASS / m_numParticles;
+		const float initVolume = INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM;
+		const float mass = cbSimulation.RestDensity * initVolume / m_numParticles;
 		const float viscosity = 0.1f;
-		cbSimulation.numParticles = m_numParticles;
-		cbSimulation.densityCoef = mass * 315.0f / (64.0f * XM_PI * pow(cbSimulation.smoothRadius, 9.0f));
-		cbSimulation.pressureGradCoef = mass * -45.0f / (XM_PI * pow(cbSimulation.smoothRadius, 6.0f));
-		cbSimulation.viscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(cbSimulation.smoothRadius, 6.0f));
+		cbSimulation.NumParticles = m_numParticles;
+		cbSimulation.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(cbSimulation.SmoothRadius, 9.0f));
+		cbSimulation.PressureGradCoef = mass * -45.0f / (XM_PI * pow(cbSimulation.SmoothRadius, 6.0f));
+		cbSimulation.ViscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(cbSimulation.SmoothRadius, 6.0f));
 	}
 
-	return m_cbSimulation->Upload(pCommandList->AsCommandList(), uploaders.back().get(), &cbSimulation,
-		sizeof(cbSimulation));
+	// Upload data to cbuffer
+	return m_cbSimulation->Upload(pCommandList->AsCommandList(),
+		uploaders.back().get(), &cbSimulation, sizeof(cbSimulation));
 }
 
 bool FluidEZ::createShaders()
@@ -168,8 +188,8 @@ bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandL
 	AccelerationStructure::SetFrameCount(FrameCount);
 
 	// Set geometries
-	//BottomLevelAS::SetTriangleGeometries(*pGeometry, 1, Format::R32G32B32_FLOAT,
-		//&m_vertexBuffer->GetVBV(), &m_indexBuffer->GetIBV());
+	GeometryFlag geometryFlag = GeometryFlag::NONE; // Any hit needs non-opaque (the default flag is opaque only)
+	BottomLevelAS::SetAABBGeometries(*pGeometry, 1, &m_particleAABBBuffer->GetVBV(), &geometryFlag);
 
 	// Prebuild
 	m_bottomLevelAS = BottomLevelAS::MakeUnique();
