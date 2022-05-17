@@ -28,8 +28,8 @@ public:
 	static const uint8_t FrameCount = 3;
 
 protected:
-	bool createParticleBuffer();
-	bool createConstBuffer();
+	bool createParticleBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
+	bool createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
 	bool createShaders();
 	bool buildAccelerationStructures(XUSG::RayTracing::EZ::CommandList* pCommandList,
 		const XUSG::RayTracing::Device* pDevice,
@@ -40,7 +40,15 @@ protected:
 	XUSG::RayTracing::BottomLevelAS::uptr m_bottomLevelAS;
 	XUSG::RayTracing::TopLevelAS::uptr m_topLevelAS;
 
+	// StructuredBuffer<Particle>	g_roParticles	: register(t0);
+	// RaytracingAS g_bvhParticles : register(t0, space1);
+	// RWBuffer<float> g_rwDensities : register(u0);
+	XUSG::StructuredBuffer::uptr	m_particleBuffer;
+	XUSG::TypedBuffer::uptr			m_densityBuffer;
+	XUSG::ConstantBuffer::uptr		m_cbSimulation;
+
 	XUSG::Resource::uptr m_instances;
+
 
 	// Shader tables
 	static const wchar_t* HitGroupName;
