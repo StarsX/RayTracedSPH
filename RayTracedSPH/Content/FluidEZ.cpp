@@ -94,6 +94,8 @@ void FluidEZ::Render(RayTracing::EZ::CommandList* pCommandList, uint8_t frameInd
 
 void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
+	pCommandList->BuildBLAS(m_bottomLevelAS.get());
+
 	computeDensity(pCommandList, frameIndex);
 }
 
@@ -227,9 +229,8 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList, uint8_t 
 {
 	// Set pipeline state
 	pCommandList->RTSetShaderLibrary(m_shaders[RT_DENSITY]);
-	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName);
-	// ...
-	pCommandList->RTSetShaderConfig(sizeof(XMFLOAT4), sizeof(XMFLOAT2));
+	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL);
+	pCommandList->RTSetShaderConfig(sizeof(float), sizeof(float));
 	pCommandList->RTSetMaxRecursionDepth(1);
 
 	// Set TLAS
@@ -239,10 +240,14 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList, uint8_t 
 	const auto uav = XUSG::EZ::GetUAV(m_densityBuffer.get());
 	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav, 0);
 
-	// Set SRVs
+	// Set SRV
 	const auto srv = XUSG::EZ::GetSRV(m_particleBuffer.get());
 	pCommandList->SetComputeResources(DescriptorType::SRV, 0, 1, &srv, 0);
 
+	// Set CBV
+	const auto cbv = XUSG::EZ::GetCBV(m_cbSimulation.get());
+	pCommandList->SetComputeResources(DescriptorType::CBV, 0, 1, &cbv, 0);
+
 	// Dispatch command
-	//pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
+	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
 }
