@@ -30,4 +30,4 @@ cbuffer cbSimulation : register(b0)
 //--------------------------------------------------------------------------------------
 // Buffer
 //--------------------------------------------------------------------------------------
-StructuredBuffer<Particle>	g_roParticles	: register(t0);
+StructuredBuffer<Particle> g_roParticles : register(t0);

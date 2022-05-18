@@ -56,8 +56,13 @@ void intersectionMain()
 	const float r_sq = dot(disp, disp);
 	if (r_sq < g_h_sq)
 	{
+#ifdef POINT_QUERY
+		const float thit = 0.0;
+#else
+		const float thit = g_smoothRadius * 0.5;
+#endif
 		const HitAttributes attr = { r_sq };
-		ReportHit(r_sq, /*hitKind*/ 0, attr);
+		ReportHit(thit, /*hitKind*/ 0, attr);
 	}
 }
 

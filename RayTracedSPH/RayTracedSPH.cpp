@@ -152,10 +152,8 @@ void RayTracedSPH::LoadAssets()
 	if (!m_fluid) ThrowIfFailed(E_FAIL);
 
 	vector<Resource::uptr> uploaders(0);
-	GeometryBuffer geometry;
-	if (!m_fluid->Init(m_commandListEZ.get(),
-		m_width, m_height, m_renderTargets[0]->GetFormat(),
-		m_depth->GetFormat(), uploaders, &geometry)) ThrowIfFailed(E_FAIL);
+	if (!m_fluid->Init(m_commandListEZ.get(), m_width, m_height, m_renderTargets[0]->GetFormat(),
+		m_depth->GetFormat(), uploaders)) ThrowIfFailed(E_FAIL);
 
 	// Close the command list and execute it to begin the initial GPU setup.
 	XUSG_N_RETURN(m_commandListEZ->Close(), ThrowIfFailed(E_FAIL));
@@ -336,7 +334,8 @@ void RayTracedSPH::PopulateCommandList()
 	auto dsv = XUSG::EZ::GetDSV(m_depth.get());
 	pCommandList->ClearDepthStencilView(dsv, ClearFlag::DEPTH, 1.0f);
 
-	// ...
+	// Fluid
+	m_fluid->Simulate(pCommandList, m_frameIndex);
 
 	XUSG_N_RETURN(pCommandList->CloseForPresent(renderTarget), ThrowIfFailed(E_FAIL));
 }
