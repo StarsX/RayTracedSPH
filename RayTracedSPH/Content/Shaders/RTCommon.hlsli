@@ -3,6 +3,7 @@
 //--------------------------------------------------------------------------------------
 
 #include "Common.hlsli"
+#include "SharedConst.h"
 
 typedef RaytracingAccelerationStructure RaytracingAS;
 
@@ -14,7 +15,7 @@ static const float g_h_sq = g_smoothRadius * g_smoothRadius;
 //--------------------------------------------------------------------------------------
 // Buffer
 //--------------------------------------------------------------------------------------
-RaytracingAS g_bvhParticles : register(t0, space1);
+RaytracingAS g_bvhParticles : register (t0, space1);
 
 //--------------------------------------------------------------------------------------
 // Generate ray
@@ -27,7 +28,7 @@ RayDesc GenerateRay(uint index)
 	ray.Origin = particle.Pos;
 	ray.Direction = float3(0.0.xx, 1.0);
 	ray.TMin = 0.0;
-#ifdef POINT_QUERY
+#if POINT_QUERY
 	// 0-length ray for point query
 	ray.TMax = 0.0;
 #else

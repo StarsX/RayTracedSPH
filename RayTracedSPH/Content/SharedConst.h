@@ -2,7 +2,4 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define SHOW_MIP	0
-#define	USE_MUTEX	0
-
-#define CLEAR_COLOR	0.0f, 0.2f, 0.4f
+#define POINT_QUERY 1
