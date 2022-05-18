@@ -16,7 +16,7 @@ public:
 
 	bool Init(XUSG::RayTracing::EZ::CommandList* pCommandList, uint32_t width, uint32_t height,
 		XUSG::Format rtFormat, XUSG::Format dsFormat, std::vector<XUSG::Resource::uptr>& uploaders,
-		XUSG::RayTracing::GeometryBuffer* pGeometry, uint32_t numParticles = 65536);
+		uint32_t numParticles = 65536);
 
 	void UpdateFrame(uint8_t frameIndex, DirectX::CXMVECTOR eyePt, DirectX::CXMMATRIX viewProj);
 	void Render(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
@@ -31,21 +31,19 @@ protected:
 	bool createParticleBuffers(XUSG::RayTracing::EZ::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
 	bool createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
 	bool createShaders();
-	bool buildAccelerationStructures(XUSG::RayTracing::EZ::CommandList* pCommandList,
-		const XUSG::RayTracing::Device* pDevice,
-		XUSG::RayTracing::GeometryBuffer* pGeometries);
+	bool buildAccelerationStructures(XUSG::RayTracing::EZ::CommandList* pCommandList);
 
 	void computeDensity(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
 
 	XUSG::RayTracing::BottomLevelAS::uptr m_bottomLevelAS;
 	XUSG::RayTracing::TopLevelAS::uptr m_topLevelAS;
 
-	// RaytracingAS g_bvhParticles : register(t0, space1);
 	XUSG::StructuredBuffer::uptr	m_particleBuffer;
 	XUSG::VertexBuffer::uptr		m_particleAABBBuffer;
 	XUSG::TypedBuffer::uptr			m_densityBuffer;
 	XUSG::ConstantBuffer::uptr		m_cbSimulation;
 
+	XUSG::RayTracing::GeometryBuffer m_geometry;
 	XUSG::Resource::uptr m_instances;
 
 	// Shader tables

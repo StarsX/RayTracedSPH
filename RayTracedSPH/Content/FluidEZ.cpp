@@ -56,8 +56,7 @@ FluidEZ::~FluidEZ()
 }
 
 bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, uint32_t height,
-	Format rtFormat, Format dsFormat, vector<Resource::uptr>& uploaders,
-	GeometryBuffer* pGeometry, uint32_t numParticles)
+	Format rtFormat, Format dsFormat, vector<Resource::uptr>& uploaders, uint32_t numParticles)
 {
 	const auto pDevice = pCommandList->GetRTDevice();
 
@@ -71,11 +70,10 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 
 	// Create density buffer
 	m_densityBuffer = TypedBuffer::MakeUnique();
-	XUSG_N_RETURN(m_densityBuffer->Create(pCommandList->GetDevice(), m_numParticles, sizeof(float), Format::R32_FLOAT,
+	XUSG_N_RETURN(m_densityBuffer->Create(pDevice, m_numParticles, sizeof(float), Format::R32_FLOAT,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
-	uploaders.emplace_back(Resource::MakeUnique());
 
-	XUSG_N_RETURN(buildAccelerationStructures(pCommandList, pDevice, pGeometry), false);
+	XUSG_N_RETURN(buildAccelerationStructures(pCommandList), false);
 	XUSG_N_RETURN(createShaders(), false);
 
 	return true;
@@ -110,14 +108,15 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 	vector<Particle> particles(m_numParticles);
 	vector<ParticleAABB> particleAABBs(m_numParticles);
 
-	const float smoothRadius = PARTICLE_SMOOTH_RADIUS;
+	const auto smoothRadius = PARTICLE_SMOOTH_RADIUS;
 	const auto dimSize = static_cast<uint32_t>(ceil(std::cbrt(m_numParticles)));
-	const auto sliceSize = dimSize * dimSize;
+	const auto slcSize = dimSize * dimSize;
 	for (auto i = 0u; i < m_numParticles; ++i)
 	{
-		auto x = static_cast<float>((i / sliceSize % dimSize) / dimSize);
-		auto z = static_cast<float>((i / sliceSize / dimSize) / dimSize);
-		auto y = static_cast<float>((i % sliceSize / dimSize) / dimSize);
+		const auto n = i % slcSize;
+		auto x = (n % dimSize) / static_cast<float>(dimSize);
+		auto y = (n / dimSize) / static_cast<float>(dimSize);
+		auto z = (i / slcSize) / static_cast<float>(dimSize);
 		x = INIT_PARTICLE_VOLUME_DIM * (x - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[0];
 		y = INIT_PARTICLE_VOLUME_DIM * (y - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[1];
 		z = INIT_PARTICLE_VOLUME_DIM * (z - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[2];
@@ -126,8 +125,8 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 		particles[i].Velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 		// AABB
-		particleAABBs[i].Min = XMFLOAT3(particles[i].Pos.x - smoothRadius, particles[i].Pos.y - smoothRadius, particles[i].Pos.z - smoothRadius);
-		particleAABBs[i].Max = XMFLOAT3(particles[i].Pos.x + smoothRadius, particles[i].Pos.y + smoothRadius, particles[i].Pos.z + smoothRadius);
+		particleAABBs[i].Min = XMFLOAT3(x - smoothRadius, y - smoothRadius, z - smoothRadius);
+		particleAABBs[i].Max = XMFLOAT3(x + smoothRadius, y + smoothRadius, z + smoothRadius);
 	}
 
 	// Create particle buffer
@@ -143,12 +142,13 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 	// Create particle AABB buffer
 	m_particleAABBBuffer = VertexBuffer::MakeUnique();
 	XUSG_N_RETURN(m_particleAABBBuffer->Create(pCommandList->GetDevice(), m_numParticles, sizeof(ParticleAABB),
-		ResourceFlag::NONE, MemoryType::DEFAULT), false);
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1, nullptr,
+		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"ParticleAABBs"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
 	// upload data to the AABB buffer
 	XUSG_N_RETURN(m_particleAABBBuffer->Upload(pCommandList->AsCommandList(), uploaders.back().get(), particleAABBs.data(),
-		sizeof(ParticleAABB) * m_numParticles), false);
+		sizeof(ParticleAABB) * m_numParticles, 0, ResourceState::NON_PIXEL_SHADER_RESOURCE), false);
 
 	return true;
 }
@@ -157,7 +157,7 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 {
 	// Create constant buffer
 	m_cbSimulation = ConstantBuffer::MakeUnique();
-	XUSG_N_RETURN(m_cbSimulation->Create(pCommandList->GetDevice(), sizeof(CBSimulation), FrameCount,
+	XUSG_N_RETURN(m_cbSimulation->Create(pCommandList->GetDevice(), sizeof(CBSimulation), 1,
 		nullptr, MemoryType::DEFAULT), false);
 
 	// Init constant data
@@ -177,6 +177,8 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 	}
 
 	// Upload data to cbuffer
+	uploaders.emplace_back(Resource::MakeUnique());
+
 	return m_cbSimulation->Upload(pCommandList->AsCommandList(),
 		uploaders.back().get(), &cbSimulation, sizeof(cbSimulation));
 }
@@ -193,19 +195,18 @@ bool FluidEZ::createShaders()
 	return true;
 }
 
-bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandList,
-	const RayTracing::Device* pDevice, GeometryBuffer* pGeometry)
+bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandList)
 {
 	AccelerationStructure::SetFrameCount(FrameCount);
 
 	// Set geometries
 	GeometryFlag geometryFlag = GeometryFlag::NONE; // Any hit needs non-opaque (the default flag is opaque only)
-	BottomLevelAS::SetAABBGeometries(*pGeometry, 1, &m_particleAABBBuffer->GetVBV(), &geometryFlag);
+	BottomLevelAS::SetAABBGeometries(m_geometry, 1, &m_particleAABBBuffer->GetVBV(), &geometryFlag);
 
 	// Prebuild
 	m_bottomLevelAS = BottomLevelAS::MakeUnique();
 	m_topLevelAS = TopLevelAS::MakeUnique();
-	XUSG_N_RETURN(pCommandList->PreBuildBLAS(m_bottomLevelAS.get(), 1, *pGeometry, BuildFlag::PREFER_FAST_BUILD), false);
+	XUSG_N_RETURN(pCommandList->PreBuildBLAS(m_bottomLevelAS.get(), 1, m_geometry, BuildFlag::PREFER_FAST_BUILD), false);
 	XUSG_N_RETURN(pCommandList->PreBuildTLAS(m_topLevelAS.get(), 1), false);
 
 	// Set instance
@@ -214,7 +215,7 @@ bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandL
 	float* const pTransform[] = { reinterpret_cast<float*>(&matrix) };
 	m_instances = Resource::MakeUnique();
 	const BottomLevelAS* const ppBottomLevelAS[] = { m_bottomLevelAS.get() };
-	TopLevelAS::SetInstances(pDevice, m_instances.get(), 1, &ppBottomLevelAS[0], &pTransform[0]);
+	TopLevelAS::SetInstances(pCommandList->GetRTDevice(), m_instances.get(), 1, &ppBottomLevelAS[0], &pTransform[0]);
 
 	// Build bottom level ASs
 	pCommandList->BuildBLAS(m_bottomLevelAS.get());
@@ -238,15 +239,15 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList, uint8_t 
 
 	// Set UAV
 	const auto uav = XUSG::EZ::GetUAV(m_densityBuffer.get());
-	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav, 0);
+	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav);
 
 	// Set SRV
 	const auto srv = XUSG::EZ::GetSRV(m_particleBuffer.get());
-	pCommandList->SetComputeResources(DescriptorType::SRV, 0, 1, &srv, 0);
+	pCommandList->SetComputeResources(DescriptorType::SRV, 0, 1, &srv);
 
 	// Set CBV
 	const auto cbv = XUSG::EZ::GetCBV(m_cbSimulation.get());
-	pCommandList->SetComputeResources(DescriptorType::CBV, 0, 1, &cbv, 0);
+	pCommandList->SetComputeResources(DescriptorType::CBV, 0, 1, &cbv);
 
 	// Dispatch command
 	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
