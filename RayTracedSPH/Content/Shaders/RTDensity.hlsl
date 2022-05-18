@@ -45,25 +45,27 @@ void raygenMain()
 [shader("intersection")]
 void intersectionMain()
 {
-	float3 pointPos = WorldRayOrigin();
-#if !POINT_QUERY
-	// z-oriented ray segment with g_smoothRadius length
-	pointPos.z += g_smoothRadius * 0.5;
-#endif
+	const float thit = GetTHit();
+	const float r_sq = CalculateRadiusSqr(thit);
 
-	const Particle particle = g_roParticles[PrimitiveIndex()];
-	const float3 disp = particle.Pos - pointPos;
-	const float r_sq = dot(disp, disp);
-	if (r_sq < g_h_sq)
+	if (r_sq < g_smoothRadius * g_smoothRadius)
 	{
-#if POINT_QUERY
-		const float thit = 0.0;
-#else
-		const float thit = g_smoothRadius * 0.5;
-#endif
 		const HitAttributes attr = { r_sq };
 		ReportHit(thit, /*hitKind*/ 0, attr);
 	}
+}
+
+//--------------------------------------------------------------------------------------
+// Density calculation
+//--------------------------------------------------------------------------------------
+float CalculateDensity(float r_sq)
+{
+	// Implements this equation:
+	// W_poly6(r, h) = 315 / (64 * pi * h^9) * (h^2 - r^2)^3
+	// g_densityCoef = particleMass * 315.0f / (64.0f * PI * g_smoothRadius^9)
+	const float d_sq = g_smoothRadius * g_smoothRadius - r_sq;
+
+	return g_densityCoef * d_sq * d_sq * d_sq;
 }
 
 //--------------------------------------------------------------------------------------
@@ -72,12 +74,7 @@ void intersectionMain()
 [shader("anyhit")]
 void anyHitMain(inout RayPayload payload, HitAttributes attr)
 {
-	// Implements this equation:
-	// W_poly6(r, h) = 315 / (64 * pi * h^9) * (h^2 - r^2)^3
-	// g_densityCoef = particleMass * 315.0f / (64.0f * PI * g_smoothRadius^9)
-	const float d_sq = g_h_sq - attr.R_sq;
-
-	payload.Density += g_densityCoef * d_sq * d_sq * d_sq;
+	payload.Density += CalculateDensity(attr.R_sq);
 
 	IgnoreHit();
 }

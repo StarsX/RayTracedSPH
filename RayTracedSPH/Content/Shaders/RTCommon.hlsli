@@ -8,11 +8,6 @@
 typedef RaytracingAccelerationStructure RaytracingAS;
 
 //--------------------------------------------------------------------------------------
-// Constant
-//--------------------------------------------------------------------------------------
-static const float g_h_sq = g_smoothRadius * g_smoothRadius;
-
-//--------------------------------------------------------------------------------------
 // Buffer
 //--------------------------------------------------------------------------------------
 RaytracingAS g_bvhParticles : register (t0, space1);
@@ -38,4 +33,33 @@ RayDesc GenerateRay(uint index)
 #endif
 
 	return ray;
+}
+
+//--------------------------------------------------------------------------------------
+// Get THit 
+//--------------------------------------------------------------------------------------
+float GetTHit()
+{
+#if POINT_QUERY
+	// 0-length ray for point query
+	return 0.0;
+#else
+	// z-oriented ray segment with g_smoothRadius length
+	return g_smoothRadius * 0.5;
+#endif
+}
+
+//--------------------------------------------------------------------------------------
+// Get THit 
+//--------------------------------------------------------------------------------------
+float CalculateRadiusSqr(float thit)
+{
+	const Particle particle = g_roParticles[PrimitiveIndex()];
+
+	float3 hitPos = WorldRayOrigin();
+	hitPos.z += thit;
+
+	const float3 disp = particle.Pos - hitPos;
+	
+	return dot(disp, disp);
 }
