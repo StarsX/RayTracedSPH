@@ -46,7 +46,7 @@ void raygenMain()
 void intersectionMain()
 {
 	const float thit = GetTHit();
-	const float r_sq = CalculateRadiusSqr(thit);
+	const float r_sq = CalculateParticleDistanceSqr(thit);
 
 	if (r_sq < g_smoothRadius * g_smoothRadius)
 	{

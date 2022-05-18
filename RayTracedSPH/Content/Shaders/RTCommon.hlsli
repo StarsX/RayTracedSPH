@@ -50,9 +50,9 @@ float GetTHit()
 }
 
 //--------------------------------------------------------------------------------------
-// Get THit 
+// Calculate distance square between 2 particles
 //--------------------------------------------------------------------------------------
-float CalculateRadiusSqr(float thit)
+float CalculateParticleDistanceSqr(float thit)
 {
 	const Particle particle = g_roParticles[PrimitiveIndex()];
 
