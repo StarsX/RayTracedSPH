@@ -3,6 +3,7 @@
 //--------------------------------------------------------------------------------------
 
 #include "FluidEZ.h"
+#include "SharedConst.h"
 
 using namespace std;
 using namespace DirectX;
@@ -125,8 +126,17 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 		particles[i].Velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 		// AABB
-		particleAABBs[i].Min = XMFLOAT3(x - smoothRadius, y - smoothRadius, z - smoothRadius);
-		particleAABBs[i].Max = XMFLOAT3(x + smoothRadius, y + smoothRadius, z + smoothRadius);
+		particleAABBs[i].Min.x = x - smoothRadius;
+		particleAABBs[i].Max.x = x + smoothRadius;
+		particleAABBs[i].Min.y = y - smoothRadius;
+		particleAABBs[i].Max.y = y + smoothRadius;
+#if POINT_QUERY
+		particleAABBs[i].Min.z = z - smoothRadius;
+		particleAABBs[i].Max.z = z + smoothRadius;
+#else
+		particleAABBs[i].Min.z = z - smoothRadius * 0.5f;
+		particleAABBs[i].Max.z = z + smoothRadius * 0.5f;
+#endif
 	}
 
 	// Create particle buffer
@@ -189,8 +199,8 @@ bool FluidEZ::createShaders()
 	auto psIndex = 0u;
 	auto csIndex = 0u;
 
-	XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"RTDensity.cso"), false);
-	m_shaders[RT_DENSITY] = m_shaderPool->GetShader(Shader::Stage::CS, csIndex++);
+	XUSG_X_RETURN(m_shaders[RT_DENSITY], m_shaderPool->CreateShader(
+		Shader::Stage::CS, csIndex++, L"RTDensity.cso"), false);
 
 	return true;
 }

@@ -20,7 +20,7 @@ struct HitAttributes
 //--------------------------------------------------------------------------------------
 // Buffer
 //--------------------------------------------------------------------------------------
-RWBuffer<float> g_rwDensities : register(u0);
+RWBuffer<float> g_rwDensities : register (u0);
 
 //--------------------------------------------------------------------------------------
 // Ray generation
@@ -46,7 +46,7 @@ void raygenMain()
 void intersectionMain()
 {
 	float3 pointPos = WorldRayOrigin();
-#ifndef POINT_QUERY
+#if !POINT_QUERY
 	// z-oriented ray segment with g_smoothRadius length
 	pointPos.z += g_smoothRadius * 0.5;
 #endif
@@ -56,7 +56,7 @@ void intersectionMain()
 	const float r_sq = dot(disp, disp);
 	if (r_sq < g_h_sq)
 	{
-#ifdef POINT_QUERY
+#if POINT_QUERY
 		const float thit = 0.0;
 #else
 		const float thit = g_smoothRadius * 0.5;
