@@ -35,7 +35,7 @@ protected:
 
 	void computeDensity(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void computeAcceleration(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
-	void computeIntegration(XUSG::RayTracing::EZ::CommandList * pCommandList, uint8_t frameIndex);
+	void computeIntegration(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
 
 	XUSG::RayTracing::BottomLevelAS::uptr m_bottomLevelAS;
 	XUSG::RayTracing::TopLevelAS::uptr m_topLevelAS;
@@ -45,6 +45,7 @@ protected:
 	XUSG::TypedBuffer::uptr			m_densityBuffer;
 	XUSG::TypedBuffer::uptr			m_accelerationBuffer;
 	XUSG::ConstantBuffer::uptr		m_cbSimulation;
+	XUSG::ConstantBuffer::uptr		m_cbPerFrame;
 
 	XUSG::RayTracing::GeometryBuffer m_geometry;
 	XUSG::Resource::uptr m_instances;
@@ -61,6 +62,8 @@ protected:
 		RT_DENSITY,
 		RT_FORCE,
 		CS_INTEGRATE,
+		VS_DRAW_PARTICLES,
+		PS_DRAW_PARTICLES,
 
 		NUM_SHADER
 	};
