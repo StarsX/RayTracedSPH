@@ -192,7 +192,7 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 		cbSimulation.RestDensity = PARTICLE_REST_DENSITY;
 		cbSimulation.WallStiffness = 3000.0f;
 		cbSimulation.Gravity = XMFLOAT4A(0, -0.5f, 0, 0);
-		cbSimulation.Planes[0] = XMFLOAT4A(-0.5f, 0, 0, 0); 
+		cbSimulation.Planes[0] = XMFLOAT4A(-0.5f, 0, 0, 0);
 		cbSimulation.Planes[1] = XMFLOAT4A(0.5f, 0, 0, 0);
 		cbSimulation.Planes[2] = XMFLOAT4A(0, 0, -0.5f, 0);
 		cbSimulation.Planes[3] = XMFLOAT4A(0, 0, 0.5f, 0);
@@ -304,7 +304,7 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList, uin
 	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav);
 
 	// Set SRVs
-	const XUSG::EZ::ResourceView srvs[] = 
+	const XUSG::EZ::ResourceView srvs[] =
 	{
 		XUSG::EZ::GetSRV(m_particleBuffer.get()),
 		XUSG::EZ::GetSRV(m_densityBuffer.get()),
@@ -324,9 +324,13 @@ void FluidEZ::computeIntegration(RayTracing::EZ::CommandList* pCommandList, uint
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_INTEGRATE]);
 
-	// Set UAV
-	const auto uav = XUSG::EZ::GetUAV(m_particleBuffer.get());
-	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav);
+	// Set UAVs
+	const XUSG::EZ::ResourceView uavs[] =
+	{
+		XUSG::EZ::GetUAV(m_particleBuffer.get()),
+		XUSG::EZ::GetUAV(m_particleAABBBuffer.get()),
+	};
+	pCommandList->SetComputeResources(DescriptorType::UAV, 0, static_cast<uint32_t>(size(uavs)), uavs);
 
 	// Set SRV
 	const auto srv = XUSG::EZ::GetSRV(m_accelerationBuffer.get());
