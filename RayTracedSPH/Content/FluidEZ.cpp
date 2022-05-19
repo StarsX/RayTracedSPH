@@ -40,6 +40,11 @@ struct CBSimulation
 	XMFLOAT4A	Planes[6];
 };
 
+struct CBPerFrame
+{
+	XMMATRIX  viewProj;
+};
+
 struct Particle
 {
 	XMFLOAT3 Pos;
@@ -93,6 +98,8 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 
 void FluidEZ::UpdateFrame(uint8_t frameIndex, CXMVECTOR eyePt, CXMMATRIX viewProj)
 {
+	const auto pCbPerFrame = reinterpret_cast<CBPerFrame*>(m_cbPerFrame->Map(frameIndex));
+	pCbPerFrame->viewProj = viewProj;
 }
 
 void FluidEZ::Render(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
@@ -114,6 +121,35 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
 	RenderTarget* pRenderTarget, DepthStencil* pDepthStencil)
 {
+	// Set pipeline state
+	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_DRAW_PARTICLES]);
+	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_DRAW_PARTICLES]);
+	pCommandList->DSSetState(XUSG::Graphics::DepthStencilPreset::DEFAULT_LESS);
+
+	// Set render target
+	const auto rtv = XUSG::EZ::GetRTV(pRenderTarget);
+	const auto dsv = XUSG::EZ::GetDSV(pDepthStencil);
+	pCommandList->OMSetRenderTargets(1, &rtv, &dsv);
+
+	// Set CBV
+	const auto cbv = XUSG::EZ::GetCBV(m_cbPerFrame.get());
+	pCommandList->SetGraphicsResources(Shader::Stage::VS, DescriptorType::CBV, 1, 1, &cbv);
+
+	// Set SRV
+	const auto srv = XUSG::EZ::GetSRV(m_particleBuffer.get());
+	pCommandList->SetGraphicsResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv);
+
+	// Set viewport
+	Viewport viewport(0.0f, 0.0f, m_viewport.x, m_viewport.y);
+	RectRange scissorRect(0, 0, static_cast<long>(m_viewport.x), static_cast<long>(m_viewport.y));
+	pCommandList->RSSetViewports(1, &viewport);
+	pCommandList->RSSetScissorRects(1, &scissorRect);
+
+	// Set IA
+	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::POINTLIST);
+
+	// Draw Command
+	pCommandList->Draw(0, m_numParticles, 0, 0);
 }
 
 bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, vector<Resource::uptr>& uploaders)
@@ -178,9 +214,13 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 
 bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList, vector<Resource::uptr>& uploaders)
 {
-	// Create constant buffer
+	// Create constant buffers
 	m_cbSimulation = ConstantBuffer::MakeUnique();
 	XUSG_N_RETURN(m_cbSimulation->Create(pCommandList->GetDevice(), sizeof(CBSimulation), 1,
+		nullptr, MemoryType::DEFAULT), false);
+
+	m_cbPerFrame = ConstantBuffer::MakeUnique();
+	XUSG_N_RETURN(m_cbPerFrame->Create(pCommandList->GetDevice(), sizeof(CBPerFrame) * FrameCount, FrameCount,
 		nullptr, MemoryType::DEFAULT), false);
 
 	// Init constant data
@@ -226,6 +266,10 @@ bool FluidEZ::createShaders()
 		Shader::Stage::CS, csIndex++, L"RTForce.cso"), false);
 	XUSG_X_RETURN(m_shaders[CS_INTEGRATE], m_shaderPool->CreateShader(
 		Shader::Stage::CS, csIndex++, L"CSIntegrate.cso"), false);
+	XUSG_X_RETURN(m_shaders[VS_DRAW_PARTICLES], m_shaderPool->CreateShader(
+		Shader::Stage::VS, vsIndex++, L"VSDrawParticles.cso"), false);
+	XUSG_X_RETURN(m_shaders[PS_DRAW_PARTICLES], m_shaderPool->CreateShader(
+		Shader::Stage::PS, psIndex++, L"PSDrawParticles.cso"), false);
 
 	return true;
 }
