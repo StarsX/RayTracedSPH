@@ -111,5 +111,8 @@
     <FxCompile Include="Content\Shaders\RTDensity.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Content\Shaders\RTForce.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
