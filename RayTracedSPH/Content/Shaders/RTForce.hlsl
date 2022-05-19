@@ -11,10 +11,12 @@ struct RayPayload
 {
 	float Pressure;
 	float3 Force;
+	float3 Velocity;
 };
 
 struct HitAttributes
 {
+	float3 Disp;
 	float R_sq;
 };
 
@@ -23,6 +25,18 @@ struct HitAttributes
 //--------------------------------------------------------------------------------------
 RWBuffer<float3> g_rwForces : register (u0);
 Buffer<float> g_roDensities : register (t1);
+
+//--------------------------------------------------------------------------------------
+// Pressure calculation
+//--------------------------------------------------------------------------------------
+float CalculatePressure(float density)
+{
+	// Implements this equation:
+	// Pressure = B * ((rho / rho_0)^y - 1)
+	const float rhoRatio = density / g_restDensity;
+
+	return g_pressureStiffness * max(rhoRatio * rhoRatio * rhoRatio - 1.0, 0.0);
+}
 
 //--------------------------------------------------------------------------------------
 // Ray generation
@@ -36,8 +50,9 @@ void raygenMain()
 
 	// Trace the ray.
 	RayPayload payload;
-	payload.Force = 0.0;
 	payload.Pressure = CalculatePressure(density);
+	payload.Velocity = g_roParticles[index].Velocity;
+	payload.Force = 0.0;
 	TraceRay(g_bvhParticles, RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 1, 0, ray, payload);
 
 	g_rwForces[index] = payload.Force / density;
@@ -50,28 +65,17 @@ void raygenMain()
 void intersectionMain()
 {
 	const float thit = GetTHit();
-	const float r_sq = CalculateParticleDistanceSqr(thit);
-	const uint hitId = PrimitiveIndex();
-	const uint selfId = DispatchRaysIndex().x;
+	const float3 disp = CalculateParticleDisplacement(thit);
+	const float r_sq = dot(disp, disp);
+	const uint hitIndex = PrimitiveIndex();
+	const uint index = DispatchRaysIndex().x;
 
 	if (r_sq < g_smoothRadius * g_smoothRadius 
-		&& selfId != hitId)
+		&& index != hitIndex)
 	{
-		const HitAttributes attr = { r_sq };
+		const HitAttributes attr = { disp, r_sq };
 		ReportHit(thit, /*hitKind*/ 0, attr);
 	}
-}
-
-//--------------------------------------------------------------------------------------
-// Pressure calculation
-//--------------------------------------------------------------------------------------
-float CalculatePressure(float density)
-{
-	// Implements this equation:
-	// Pressure = B * ((rho / rho_0)^y - 1)
-	const float rhoRatio = density / g_restDensity;
-
-	return g_pressureStiffness * max(rhoRatio * rhoRatio * rhoRatio - 1.0, 0.0);
 }
 
 //--------------------------------------------------------------------------------------
@@ -108,27 +112,19 @@ float3 CalculateVelocityLaplace(float d, float3 velocity, float3 adjVelocity, fl
 [shader("anyhit")]
 void anyHitMain(inout RayPayload payload, HitAttributes attr)
 {
-	const uint index = DispatchRaysIndex().x;
-	const uint neighbourIndex = PrimitiveIndex();
-
-	const float adjDensity = g_roDensities[neighbourIndex];
-	const Particle particle = g_roParticles[index];
+	const uint hitIndex = PrimitiveIndex();
+	const Particle hitParticle = g_roParticles[hitIndex];
 
 	const float r = sqrt(attr.R_sq);
 	const float d = g_smoothRadius - r;
-	const float pressure = payload.Pressure;
-	const float adjPressure = CalculatePressure(adjDensity);
-
-	const Particle adjParticle = g_roParticles[neighbourIndex];
-	float3 hitPos = WorldRayOrigin();
-	hitPos.z += GetTHit();
-	const float3 disp = adjParticle.Pos - hitPos;
+	const float hitDensity = g_roDensities[hitIndex];
+	const float hitPressure = CalculatePressure(hitDensity);
 
 	// Pressure term
-	payload.Force += CalculateGradPressure(r, d, pressure, adjPressure, adjDensity, disp);
+	payload.Force += CalculateGradPressure(r, d, payload.Pressure, hitPressure, hitDensity, attr.Disp);
 
 	// Viscosity term
-	payload.Force += CalculateVelocityLaplace(d, particle.Velocity, adjParticle.Velocity, adjDensity);
+	payload.Force += CalculateVelocityLaplace(d, payload.Velocity, hitParticle.Velocity, hitDensity);
 
 	IgnoreHit();
 }

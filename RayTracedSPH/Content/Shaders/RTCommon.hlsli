@@ -50,16 +50,23 @@ float GetTHit()
 }
 
 //--------------------------------------------------------------------------------------
-// Calculate distance square between 2 particles
+// Calculate distance between 2 particles
 //--------------------------------------------------------------------------------------
+
+float3 CalculateParticleDisplacement(float thit)
+{
+	const Particle hitParticle = g_roParticles[PrimitiveIndex()];
+
+	float3 rayPos = WorldRayOrigin();
+	rayPos.z += thit;
+
+	return hitParticle.Pos - rayPos;
+}
+
+
 float CalculateParticleDistanceSqr(float thit)
 {
-	const Particle particle = g_roParticles[PrimitiveIndex()];
-
-	float3 hitPos = WorldRayOrigin();
-	hitPos.z += thit;
-
-	const float3 disp = particle.Pos - hitPos;
+	const float3 disp = CalculateParticleDisplacement(thit);
 	
 	return dot(disp, disp);
 }
