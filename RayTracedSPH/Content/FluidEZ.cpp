@@ -74,6 +74,11 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 	XUSG_N_RETURN(m_densityBuffer->Create(pDevice, m_numParticles, sizeof(float), Format::R32_FLOAT,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
 
+	// Create particle Acceleration buffer
+	m_accelerationBuffer = TypedBuffer::MakeUnique();
+	XUSG_N_RETURN(m_accelerationBuffer->Create(pCommandList->GetDevice(), m_numParticles, sizeof(XMFLOAT3), Format::R32G32B32_FLOAT,
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
+
 	XUSG_N_RETURN(buildAccelerationStructures(pCommandList), false);
 	XUSG_N_RETURN(createShaders(), false);
 
@@ -96,6 +101,7 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 	pCommandList->BuildBLAS(m_bottomLevelAS.get());
 
 	computeDensity(pCommandList, frameIndex);
+	computeAcceleration(pCommandList, frameIndex);
 }
 
 void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
@@ -201,6 +207,8 @@ bool FluidEZ::createShaders()
 
 	XUSG_X_RETURN(m_shaders[RT_DENSITY], m_shaderPool->CreateShader(
 		Shader::Stage::CS, csIndex++, L"RTDensity.cso"), false);
+	XUSG_X_RETURN(m_shaders[RT_FORCE], m_shaderPool->CreateShader(
+		Shader::Stage::CS, csIndex++, L"RTForce.cso"), false);
 
 	return true;
 }
@@ -254,6 +262,37 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList, uint8_t 
 	// Set SRV
 	const auto srv = XUSG::EZ::GetSRV(m_particleBuffer.get());
 	pCommandList->SetComputeResources(DescriptorType::SRV, 0, 1, &srv);
+
+	// Set CBV
+	const auto cbv = XUSG::EZ::GetCBV(m_cbSimulation.get());
+	pCommandList->SetComputeResources(DescriptorType::CBV, 0, 1, &cbv);
+
+	// Dispatch command
+	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
+}
+
+void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex)
+{
+	// Set pipeline state
+	pCommandList->RTSetShaderLibrary(m_shaders[RT_FORCE]);
+	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL);
+	pCommandList->RTSetShaderConfig(sizeof(XMFLOAT4[2]), sizeof(XMFLOAT4));
+	pCommandList->RTSetMaxRecursionDepth(1);
+
+	// Set TLAS
+	pCommandList->SetTopLevelAccelerationStructure(0, m_topLevelAS.get());
+
+	// Set UAV
+	const auto uav = XUSG::EZ::GetUAV(m_accelerationBuffer.get());
+	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav);
+
+	// Set SRVs
+	const XUSG::EZ::ResourceView srvs[] = 
+	{
+		XUSG::EZ::GetSRV(m_particleBuffer.get()),
+		XUSG::EZ::GetSRV(m_densityBuffer.get()),
+	};
+	pCommandList->SetComputeResources(DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
 
 	// Set CBV
 	const auto cbv = XUSG::EZ::GetCBV(m_cbSimulation.get());
