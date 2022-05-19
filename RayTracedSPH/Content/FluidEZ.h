@@ -35,6 +35,7 @@ protected:
 
 	void computeDensity(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void computeAcceleration(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void computeIntegration(XUSG::RayTracing::EZ::CommandList * pCommandList, uint8_t frameIndex);
 
 	XUSG::RayTracing::BottomLevelAS::uptr m_bottomLevelAS;
 	XUSG::RayTracing::TopLevelAS::uptr m_topLevelAS;
@@ -59,6 +60,7 @@ protected:
 	{
 		RT_DENSITY,
 		RT_FORCE,
+		CS_INTEGRATE,
 
 		NUM_SHADER
 	};
