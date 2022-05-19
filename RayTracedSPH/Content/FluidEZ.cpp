@@ -25,13 +25,17 @@ const float PARTICLE_SMOOTH_RADIUS = POOL_VOLUME_DIM / POOL_SPACE_DIVISION;
 
 struct CBSimulation
 {
-	uint32_t	NumParticles;
+	float		TimeStep;
 	float		SmoothRadius;
 	float		PressureStiffness;
 	float		RestDensity;
 	float		DensityCoef;
 	float		PressureGradCoef;
 	float		ViscosityLaplaceCoef;
+	float		WallStiffness;
+
+	XMFLOAT4	Gravity;
+	XMFLOAT4	Planes[6];
 };
 
 struct Particle
@@ -186,7 +190,6 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 		const float initVolume = INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM;
 		const float mass = cbSimulation.RestDensity * initVolume / m_numParticles;
 		const float viscosity = 0.1f;
-		cbSimulation.NumParticles = m_numParticles;
 		cbSimulation.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(cbSimulation.SmoothRadius, 9.0f));
 		cbSimulation.PressureGradCoef = mass * -45.0f / (XM_PI * pow(cbSimulation.SmoothRadius, 6.0f));
 		cbSimulation.ViscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(cbSimulation.SmoothRadius, 6.0f));

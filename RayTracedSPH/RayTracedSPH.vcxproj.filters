@@ -114,5 +114,8 @@
     <FxCompile Include="Content\Shaders\RTForce.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Content\Shaders\CSIntegrate.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
