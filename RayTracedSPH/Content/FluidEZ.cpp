@@ -220,8 +220,7 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 		nullptr, MemoryType::DEFAULT), false);
 
 	m_cbPerFrame = ConstantBuffer::MakeUnique();
-	XUSG_N_RETURN(m_cbPerFrame->Create(pCommandList->GetDevice(), sizeof(CBPerFrame) * FrameCount, FrameCount,
-		nullptr, MemoryType::DEFAULT), false);
+	XUSG_N_RETURN(m_cbPerFrame->Create(pCommandList->GetDevice(), sizeof(CBPerFrame) * FrameCount, FrameCount), false);
 
 	// Init constant data
 	CBSimulation cbSimulation;
