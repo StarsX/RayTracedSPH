@@ -23,7 +23,7 @@ struct HitAttributes
 //--------------------------------------------------------------------------------------
 // Buffer
 //--------------------------------------------------------------------------------------
-RWBuffer<float3> g_rwForces : register (u0);
+RWBuffer<float3> g_rwAccelerations : register (u0);
 Buffer<float> g_roDensities : register (t1);
 
 //--------------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ void raygenMain()
 	payload.Force = 0.0;
 	TraceRay(g_bvhParticles, RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 1, 0, ray, payload);
 
-	g_rwForces[index] = payload.Force / density;
+	g_rwAccelerations[index] = payload.Force / density;
 }
 
 //--------------------------------------------------------------------------------------
