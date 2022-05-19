@@ -9,13 +9,13 @@
 //--------------------------------------------------------------------------------------
 struct RayPayload
 {
+	float Pressure;
 	float3 Force;
 };
 
 struct HitAttributes
 {
 	float R_sq;
-	float AdjDensity;
 };
 
 //--------------------------------------------------------------------------------------
@@ -37,6 +37,7 @@ void raygenMain()
 	// Trace the ray.
 	RayPayload payload;
 	payload.Force = 0.0;
+	payload.Pressure = CalculatePressure(density);
 	TraceRay(g_bvhParticles, RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 1, 0, ray, payload);
 
 	g_rwForces[index] = payload.Force / density;
@@ -56,7 +57,7 @@ void intersectionMain()
 	if (r_sq < g_smoothRadius * g_smoothRadius 
 		&& selfId != hitId)
 	{
-		const HitAttributes attr = { r_sq, g_roDensities[hitId] };
+		const HitAttributes attr = { r_sq };
 		ReportHit(thit, /*hitKind*/ 0, attr);
 	}
 }
@@ -108,24 +109,26 @@ float3 CalculateVelocityLaplace(float d, float3 velocity, float3 adjVelocity, fl
 void anyHitMain(inout RayPayload payload, HitAttributes attr)
 {
 	const uint index = DispatchRaysIndex().x;
-	const float density = g_roDensities[index];
+	const uint neighbourIndex = PrimitiveIndex();
+
+	const float adjDensity = g_roDensities[neighbourIndex];
 	const Particle particle = g_roParticles[index];
 
 	const float r = sqrt(attr.R_sq);
 	const float d = g_smoothRadius - r;
-	const float pressure = CalculatePressure(density);
-	const float adjPressure = CalculatePressure(attr.AdjDensity);
+	const float pressure = payload.Pressure;
+	const float adjPressure = CalculatePressure(adjDensity);
 
-	const Particle adjParticle = g_roParticles[PrimitiveIndex()];
+	const Particle adjParticle = g_roParticles[neighbourIndex];
 	float3 hitPos = WorldRayOrigin();
 	hitPos.z += GetTHit();
 	const float3 disp = adjParticle.Pos - hitPos;
 
 	// Pressure term
-	payload.Force += CalculateGradPressure(r, d, pressure, adjPressure, attr.AdjDensity, disp);
+	payload.Force += CalculateGradPressure(r, d, pressure, adjPressure, adjDensity, disp);
 
 	// Viscosity term
-	payload.Force += CalculateVelocityLaplace(d, particle.Velocity, adjParticle.Velocity, attr.AdjDensity);
+	payload.Force += CalculateVelocityLaplace(d, particle.Velocity, adjParticle.Velocity, adjDensity);
 
 	IgnoreHit();
 }
