@@ -4,39 +4,35 @@
 
 #include "Common.hlsli"
 
-#define SIMULATION_BLOCK_SIZE 256
+#define SIMULATION_BLOCK_SIZE 64
 
 //--------------------------------------------------------------------------------------
-// Buffer
+// Buffers
 //--------------------------------------------------------------------------------------
 RWStructuredBuffer<Particle> g_rwParticles : register (u0);
 Buffer<float3> g_roAccelerations : register (t0);
 
 [numthreads(SIMULATION_BLOCK_SIZE, 1, 1)]
-void main(uint3 DTid : SV_DispatchThreadID)
+void main(uint DTid : SV_DispatchThreadID)
 {
-    const uint PID = DTid.x; // Particle ID to operate on
-
-    float3 pos = g_rwParticles[PID].Pos;
-    float3 velocity = g_rwParticles[PID].Velocity;
-    float3 acceleration = g_roAccelerations[PID];
+    Particle particle = g_rwParticles[DTid];
+    float3 acceleration = g_roAccelerations[DTid];
 
     // Apply the forces from the map walls
     [unroll]
     for (unsigned int i = 0; i < 6; i++)
     {
-        float dist = dot(float4(pos, 1), g_planes[i]);
+        float dist = dot(float4(particle.Pos, 1), g_planes[i]);
         acceleration += min(dist, 0) * -g_wallStiffness * g_planes[i].xyz;
     }
 
     // Apply gravity
-    acceleration += g_gravity.xyx;
+    acceleration += g_gravity;
 
     // Integrate
-    velocity += g_timeStep * acceleration;
-    pos += g_timeStep * velocity;
+    particle.Velocity += g_timeStep * acceleration;
+    particle.Pos += g_timeStep * particle.Velocity;
 
     // Update
-    g_rwParticles[PID].Pos = pos;
-    g_rwParticles[PID].Velocity = velocity;
+    g_rwParticles[DTid] = particle;
 }

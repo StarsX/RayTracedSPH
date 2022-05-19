@@ -23,6 +23,8 @@ const float INIT_PARTICLE_VOLUME_CENTER[3] = { 0.0f, POOL_VOLUME_DIM - INIT_PART
 const float PARTICLE_REST_DENSITY = 1000.0f;
 const float PARTICLE_SMOOTH_RADIUS = POOL_VOLUME_DIM / POOL_SPACE_DIVISION;
 
+const uint32_t SIMULATION_BLOCK_SIZE = 64;
+
 struct CBSimulation
 {
 	float		TimeStep;
@@ -34,8 +36,8 @@ struct CBSimulation
 	float		ViscosityLaplaceCoef;
 	float		WallStiffness;
 
-	XMFLOAT4	Gravity;
-	XMFLOAT4	Planes[6];
+	XMFLOAT4A	Gravity;
+	XMFLOAT4A	Planes[6];
 };
 
 struct Particle
@@ -106,6 +108,7 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 
 	computeDensity(pCommandList, frameIndex);
 	computeAcceleration(pCommandList, frameIndex);
+	computeIntegration(pCommandList, frameIndex);
 }
 
 void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
@@ -183,9 +186,18 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 	// Init constant data
 	CBSimulation cbSimulation;
 	{
+		cbSimulation.TimeStep = 0.005f;//TODO: update timeStep by ellapsed time per frame.
 		cbSimulation.SmoothRadius = PARTICLE_SMOOTH_RADIUS;
 		cbSimulation.PressureStiffness = 200.0f;
 		cbSimulation.RestDensity = PARTICLE_REST_DENSITY;
+		cbSimulation.WallStiffness = 3000.0f;
+		cbSimulation.Gravity = XMFLOAT4A(0, -0.5f, 0, 0);
+		cbSimulation.Planes[0] = XMFLOAT4A(-0.5f, 0, 0, 0); 
+		cbSimulation.Planes[1] = XMFLOAT4A(0.5f, 0, 0, 0);
+		cbSimulation.Planes[2] = XMFLOAT4A(0, 0, -0.5f, 0);
+		cbSimulation.Planes[3] = XMFLOAT4A(0, 0, 0.5f, 0);
+		cbSimulation.Planes[4] = XMFLOAT4A(0, 0, 0, 0);
+		cbSimulation.Planes[5] = XMFLOAT4A(0, 1.0f, 0, 0);
 
 		const float initVolume = INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM;
 		const float mass = cbSimulation.RestDensity * initVolume / m_numParticles;
@@ -212,6 +224,8 @@ bool FluidEZ::createShaders()
 		Shader::Stage::CS, csIndex++, L"RTDensity.cso"), false);
 	XUSG_X_RETURN(m_shaders[RT_FORCE], m_shaderPool->CreateShader(
 		Shader::Stage::CS, csIndex++, L"RTForce.cso"), false);
+	XUSG_X_RETURN(m_shaders[CS_INTEGRATE], m_shaderPool->CreateShader(
+		Shader::Stage::CS, csIndex++, L"CSIntegrate.cso"), false);
 
 	return true;
 }
@@ -304,3 +318,25 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList, uin
 	// Dispatch command
 	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
 }
+
+void FluidEZ::computeIntegration(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex)
+{
+	// Set pipeline state
+	pCommandList->SetComputeShader(m_shaders[CS_INTEGRATE]);
+
+	// Set UAV
+	const auto uav = XUSG::EZ::GetUAV(m_particleBuffer.get());
+	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav);
+
+	// Set SRV
+	const auto srv = XUSG::EZ::GetSRV(m_accelerationBuffer.get());
+	pCommandList->SetComputeResources(DescriptorType::SRV, 0, 1, &srv);
+
+	// Set CBV
+	const auto cbv = XUSG::EZ::GetCBV(m_cbSimulation.get());
+	pCommandList->SetComputeResources(DescriptorType::CBV, 0, 1, &cbv);
+
+	// Dispatch command
+	pCommandList->Dispatch(m_numParticles / SIMULATION_BLOCK_SIZE, 1, 1);
+}
+

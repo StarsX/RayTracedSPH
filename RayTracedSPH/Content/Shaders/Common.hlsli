@@ -25,7 +25,7 @@ cbuffer cbSimulation : register (b0)
 	float	g_viscosityLaplaceCoef;
 	float	g_wallStiffness;
 
-	float4	g_gravity;
+	float3	g_gravity;
 	float4	g_planes[6];
 };
 

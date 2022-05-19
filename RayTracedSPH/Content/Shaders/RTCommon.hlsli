@@ -8,10 +8,10 @@
 typedef RaytracingAccelerationStructure RaytracingAS;
 
 //--------------------------------------------------------------------------------------
-// Buffer
+// Buffers
 //--------------------------------------------------------------------------------------
-RaytracingAS g_bvhParticles : register (t0, space1);
 StructuredBuffer<Particle> g_roParticles : register (t0);
+RaytracingAS g_bvhParticles : register (t0, space1);
 
 
 //--------------------------------------------------------------------------------------
