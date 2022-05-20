@@ -112,9 +112,10 @@ void FluidEZ::Render(RayTracing::EZ::CommandList* pCommandList, uint8_t frameInd
 void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
 	pCommandList->BuildBLAS(m_bottomLevelAS.get());
+	pCommandList->BuildTLAS(m_topLevelAS.get(), m_instances.get());
 
 	computeDensity(pCommandList, frameIndex);
-	//computeAcceleration(pCommandList, frameIndex);
+	computeAcceleration(pCommandList, frameIndex);
 	computeIntegration(pCommandList, frameIndex);
 }
 
@@ -132,7 +133,7 @@ void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frame
 	pCommandList->OMSetRenderTargets(1, &rtv, &dsv);
 
 	// Set CBV
-	const auto cbv = XUSG::EZ::GetCBV(m_cbPerFrame.get());
+	const auto cbv = XUSG::EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
 	pCommandList->SetGraphicsResources(Shader::Stage::VS, DescriptorType::CBV, 1, 1, &cbv);
 
 	// Set SRV
@@ -231,12 +232,12 @@ bool FluidEZ::createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList,
 		cbSimulation.RestDensity = PARTICLE_REST_DENSITY;
 		cbSimulation.WallStiffness = 3000.0f;
 		cbSimulation.Gravity = XMFLOAT4A(0, -0.5f, 0, 0);
-		cbSimulation.Planes[0] = XMFLOAT4A(-0.5f, 0, 0, 0);
-		cbSimulation.Planes[1] = XMFLOAT4A(0.5f, 0, 0, 0);
-		cbSimulation.Planes[2] = XMFLOAT4A(0, 0, -0.5f, 0);
-		cbSimulation.Planes[3] = XMFLOAT4A(0, 0, 0.5f, 0);
-		cbSimulation.Planes[4] = XMFLOAT4A(0, 0, 0, 0);
-		cbSimulation.Planes[5] = XMFLOAT4A(0, 1.0f, 0, 0);
+		cbSimulation.Planes[0] = XMFLOAT4A(0, 1.0f, 0, 0);
+		cbSimulation.Planes[1] = XMFLOAT4A(0, -1.0f, 0, POOL_VOLUME_DIM);
+		cbSimulation.Planes[2] = XMFLOAT4A(1.0f, 0, 0, 0.5f * POOL_VOLUME_DIM);
+		cbSimulation.Planes[3] = XMFLOAT4A(-1.0f, 0, 0, 0.5f * POOL_VOLUME_DIM);
+		cbSimulation.Planes[4] = XMFLOAT4A(0, 0, 1.0f, 0.5f * POOL_VOLUME_DIM);
+		cbSimulation.Planes[5] = XMFLOAT4A(0, 0, -1.0f, 0.5f * POOL_VOLUME_DIM);
 
 		const float initVolume = INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM * INIT_PARTICLE_VOLUME_DIM;
 		const float mass = cbSimulation.RestDensity * initVolume / m_numParticles;
