@@ -15,10 +15,9 @@ public:
 	virtual ~FluidEZ();
 
 	bool Init(XUSG::RayTracing::EZ::CommandList* pCommandList, uint32_t width, uint32_t height,
-		XUSG::Format rtFormat, XUSG::Format dsFormat, std::vector<XUSG::Resource::uptr>& uploaders,
-		uint32_t numParticles = 65536);
+		std::vector<XUSG::Resource::uptr>& uploaders, uint32_t numParticles = 65536);
 
-	void UpdateFrame(uint8_t frameIndex, DirectX::CXMVECTOR eyePt, DirectX::CXMMATRIX viewProj);
+	void UpdateFrame(uint8_t frameIndex, float timeStep, DirectX::CXMMATRIX viewProj);
 	void Render(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
 		XUSG::RenderTarget* pRenderTarget, XUSG::DepthStencil* pDepthStencil);
 	void Simulate(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
@@ -29,13 +28,13 @@ public:
 
 protected:
 	bool createParticleBuffers(XUSG::RayTracing::EZ::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
-	bool createConstBuffer(XUSG::RayTracing::EZ::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
+	bool createConstBuffers(XUSG::RayTracing::EZ::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders);
 	bool createShaders();
 	bool buildAccelerationStructures(XUSG::RayTracing::EZ::CommandList* pCommandList);
 
-	void computeDensity(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
-	void computeAcceleration(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
-	void computeIntegration(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void computeDensity(XUSG::RayTracing::EZ::CommandList* pCommandList);
+	void computeAcceleration(XUSG::RayTracing::EZ::CommandList* pCommandList);
+	void Integrate(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
 
 	XUSG::RayTracing::BottomLevelAS::uptr m_bottomLevelAS;
 	XUSG::RayTracing::TopLevelAS::uptr m_topLevelAS;
@@ -46,6 +45,7 @@ protected:
 	XUSG::TypedBuffer::uptr			m_accelerationBuffer;
 	XUSG::ConstantBuffer::uptr		m_cbSimulation;
 	XUSG::ConstantBuffer::uptr		m_cbPerFrame;
+	XUSG::ConstantBuffer::uptr		m_cbVisualization;
 
 	XUSG::RayTracing::GeometryBuffer m_geometry;
 	XUSG::Resource::uptr m_instances;

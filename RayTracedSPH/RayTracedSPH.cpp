@@ -142,18 +142,16 @@ void RayTracedSPH::LoadAssets()
 	// Create ray tracing interfaces
 	XUSG_N_RETURN(commandList->CreateInterface(), ThrowIfFailed(E_FAIL));
 
-	// TODO: create m_commandListEZ.
+	// Create m_commandListEZ.
 	AccelerationStructure::SetUAVCount(2);
 	m_commandListEZ = RayTracing::EZ::CommandList::MakeUnique();
 	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 24, 16,
 		nullptr, nullptr, nullptr, 1, 1, 1, 1, 1), ThrowIfFailed(E_FAIL));
 
-	m_fluid = make_unique<FluidEZ>();
-	if (!m_fluid) ThrowIfFailed(E_FAIL);
-
 	vector<Resource::uptr> uploaders(0);
-	if (!m_fluid->Init(m_commandListEZ.get(), m_width, m_height, m_renderTargets[0]->GetFormat(),
-		m_depth->GetFormat(), uploaders)) ThrowIfFailed(E_FAIL);
+	m_fluid = make_unique<FluidEZ>();
+	XUSG_N_RETURN(m_fluid->Init(m_commandListEZ.get(), m_width, m_height,
+		uploaders), ThrowIfFailed(E_FAIL));
 
 	// Close the command list and execute it to begin the initial GPU setup.
 	XUSG_N_RETURN(m_commandListEZ->Close(), ThrowIfFailed(E_FAIL));
@@ -198,16 +196,18 @@ void RayTracedSPH::OnUpdate()
 	static auto time = 0.0, pauseTime = 0.0;
 
 	m_timer.Tick();
-	const auto totalTime = CalculateFrameStats();
+	float timeStep;
+	const auto totalTime = CalculateFrameStats(&timeStep);
 	pauseTime = m_pausing ? totalTime - time : pauseTime;
+	timeStep = m_pausing ? 0.0f : timeStep;
 	time = totalTime - pauseTime;
 
 	// View
-	const auto eyePt = XMLoadFloat3(&m_eyePt);
+	//const auto eyePt = XMLoadFloat3(&m_eyePt);
 	const auto view = XMLoadFloat4x4(&m_view);
 	const auto proj = XMLoadFloat4x4(&m_proj);
 
-	m_fluid->UpdateFrame(m_frameIndex, eyePt, view * proj);
+	m_fluid->UpdateFrame(m_frameIndex, timeStep, view * proj);
 }
 
 // Render the scene.
@@ -323,21 +323,20 @@ void RayTracedSPH::PopulateCommandList()
 	const auto pCommandAllocator = m_commandAllocators[m_frameIndex].get();
 	XUSG_N_RETURN(pCommandAllocator->Reset(), ThrowIfFailed(E_FAIL));
 
-	// Voxelizer rendering
-	const auto renderTarget = m_renderTargets[m_frameIndex].get();
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
 	const auto pCommandList = m_commandListEZ.get();
 	XUSG_N_RETURN(pCommandList->Reset(pCommandAllocator, nullptr), ThrowIfFailed(E_FAIL));
 
-	const float clear[] = { 0.2f, 0.2f, 0.2f, 0.0f };
+	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 0.0f };
+	const auto renderTarget = m_renderTargets[m_frameIndex].get();
 	auto rtv = XUSG::EZ::GetRTV(renderTarget);
 	auto dsv = XUSG::EZ::GetDSV(m_depth.get());
-	pCommandList->ClearRenderTargetView(rtv, clear);
+	pCommandList->ClearRenderTargetView(rtv, clearColor);
 	pCommandList->ClearDepthStencilView(dsv, ClearFlag::DEPTH, 1.0f);
 
-	// Fluid
+	// Fluid rendering (simulation and visualization)
 	m_fluid->Render(pCommandList, m_frameIndex, renderTarget, m_depth.get());
 
 	XUSG_N_RETURN(pCommandList->CloseForPresent(renderTarget), ThrowIfFailed(E_FAIL));
