@@ -19,7 +19,7 @@ using namespace XUSG::RayTracing;
 
 static const float g_FOVAngleY = PIDIV4;
 static const float g_zNear = 1.0f;
-static const float g_zFar = 1000.0f;
+static const float g_zFar = 40.0f;
 
 RayTracedSPH::RayTracedSPH(uint32_t width, uint32_t height, std::wstring name) :
 	DXFramework(width, height, name),
@@ -183,8 +183,8 @@ void RayTracedSPH::LoadAssets()
 	XMStoreFloat4x4(&m_proj, proj);
 
 	// View initialization
-	m_focusPt = XMFLOAT3(0.0f, 4.0f, 0.0f);
-	m_eyePt = XMFLOAT3(8.0f, 12.0f, -14.0f);
+	m_focusPt = XMFLOAT3(0.0f, 0.5f, 0.0f);
+	m_eyePt = XMFLOAT3(0.0f, 0.8f, -2.0f);
 	const auto focusPt = XMLoadFloat3(&m_focusPt);
 	const auto eyePt = XMLoadFloat3(&m_eyePt);
 	const auto view = XMMatrixLookAtLH(eyePt, focusPt, XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f));
@@ -331,11 +331,14 @@ void RayTracedSPH::PopulateCommandList()
 	const auto pCommandList = m_commandListEZ.get();
 	XUSG_N_RETURN(pCommandList->Reset(pCommandAllocator, nullptr), ThrowIfFailed(E_FAIL));
 
+	const float clear[] = { 0.2f, 0.2f, 0.2f, 0.0f };
+	auto rtv = XUSG::EZ::GetRTV(renderTarget);
 	auto dsv = XUSG::EZ::GetDSV(m_depth.get());
+	pCommandList->ClearRenderTargetView(rtv, clear);
 	pCommandList->ClearDepthStencilView(dsv, ClearFlag::DEPTH, 1.0f);
 
 	// Fluid
-	m_fluid->Simulate(pCommandList, m_frameIndex);
+	m_fluid->Render(pCommandList, m_frameIndex, renderTarget, m_depth.get());
 
 	XUSG_N_RETURN(pCommandList->CloseForPresent(renderTarget), ThrowIfFailed(E_FAIL));
 }
