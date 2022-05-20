@@ -82,12 +82,12 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 
 	// Create density buffer
 	m_densityBuffer = TypedBuffer::MakeUnique();
-	XUSG_N_RETURN(m_densityBuffer->Create(pDevice, m_numParticles, sizeof(float), Format::R32_FLOAT,
+	XUSG_N_RETURN(m_densityBuffer->Create(pDevice, m_numParticles, sizeof(uint16_t), Format::R16_FLOAT,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
 
 	// Create particle Acceleration buffer
 	m_accelerationBuffer = TypedBuffer::MakeUnique();
-	XUSG_N_RETURN(m_accelerationBuffer->Create(pCommandList->GetDevice(), m_numParticles, sizeof(XMFLOAT3), Format::R32G32B32_FLOAT,
+	XUSG_N_RETURN(m_accelerationBuffer->Create(pCommandList->GetDevice(), m_numParticles, sizeof(uint16_t[4]), Format::R16G16B16A16_FLOAT,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
 
 	XUSG_N_RETURN(buildAccelerationStructures(pCommandList), false);
@@ -99,7 +99,7 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 void FluidEZ::UpdateFrame(uint8_t frameIndex, CXMVECTOR eyePt, CXMMATRIX viewProj)
 {
 	const auto pCbPerFrame = reinterpret_cast<CBPerFrame*>(m_cbPerFrame->Map(frameIndex));
-	pCbPerFrame->viewProj = viewProj;
+	pCbPerFrame->viewProj = XMMatrixTranspose(viewProj);
 }
 
 void FluidEZ::Render(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
@@ -114,7 +114,7 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 	pCommandList->BuildBLAS(m_bottomLevelAS.get());
 
 	computeDensity(pCommandList, frameIndex);
-	computeAcceleration(pCommandList, frameIndex);
+	//computeAcceleration(pCommandList, frameIndex);
 	computeIntegration(pCommandList, frameIndex);
 }
 
@@ -149,7 +149,7 @@ void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frame
 	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::POINTLIST);
 
 	// Draw Command
-	pCommandList->Draw(0, m_numParticles, 0, 0);
+	pCommandList->Draw(m_numParticles, 1, 0, 0);
 }
 
 bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, vector<Resource::uptr>& uploaders)
