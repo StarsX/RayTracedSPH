@@ -2,4 +2,5 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define POINT_QUERY 1
+#define POINT_QUERY	1
+#define GROUP_SIZE	64

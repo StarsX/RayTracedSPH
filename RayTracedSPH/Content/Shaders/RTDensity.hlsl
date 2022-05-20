@@ -29,7 +29,8 @@ RWBuffer<float> g_rwDensities : register (u0);
 void raygenMain()
 {
 	const uint index = DispatchRaysIndex().x;
-	const RayDesc ray = GenerateRay(index);
+	const Particle particle = g_roParticles[index];
+	const RayDesc ray = GenerateRay(particle);
 
 	// Trace the ray.
 	RayPayload payload;
@@ -46,7 +47,8 @@ void raygenMain()
 void intersectionMain()
 {
 	const float thit = GetTHit();
-	const float r_sq = CalculateParticleDistanceSqr(thit);
+	const float3 disp = CalculateParticleDisplacement(thit);
+	const float r_sq = dot(disp, disp);
 
 	if (r_sq < g_smoothRadius * g_smoothRadius)
 	{

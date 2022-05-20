@@ -22,7 +22,6 @@ struct ParticleAABB
 //--------------------------------------------------------------------------------------
 cbuffer cbSimulation : register (b0)
 {
-	float	g_timeStep;
 	float	g_smoothRadius;
 	float	g_pressureStiffness;
 	float	g_restDensity;
@@ -30,8 +29,7 @@ cbuffer cbSimulation : register (b0)
 	float	g_pressureGradCoef;
 	float	g_viscosityLaplaceCoef;
 	float	g_wallStiffness;
+	uint	g_numParticles;
 
-	float3	g_gravity;
 	float4	g_planes[6];
 };
-

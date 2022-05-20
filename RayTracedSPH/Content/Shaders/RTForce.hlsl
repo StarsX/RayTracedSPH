@@ -45,13 +45,14 @@ float CalculatePressure(float density)
 void raygenMain()
 {
 	const uint index = DispatchRaysIndex().x;
-	const RayDesc ray = GenerateRay(index);
+	const Particle particle = g_roParticles[index];
 	const float density = g_roDensities[index];
+	const RayDesc ray = GenerateRay(particle);
 
 	// Trace the ray.
 	RayPayload payload;
 	payload.Pressure = CalculatePressure(density);
-	payload.Velocity = g_roParticles[index].Velocity;
+	payload.Velocity = particle.Velocity;
 	payload.Force = 0.0;
 	TraceRay(g_bvhParticles, RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 1, 0, ray, payload);
 
