@@ -145,7 +145,7 @@ void RayTracedSPH::LoadAssets()
 	// Create m_commandListEZ.
 	AccelerationStructure::SetUAVCount(2);
 	m_commandListEZ = RayTracing::EZ::CommandList::MakeUnique();
-	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 24, 1,
+	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 32, 1,
 		nullptr, nullptr, nullptr, 1, 1, 1, 1, 1), ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);
