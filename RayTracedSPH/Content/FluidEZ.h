@@ -17,7 +17,7 @@ public:
 	bool Init(XUSG::RayTracing::EZ::CommandList* pCommandList, uint32_t width, uint32_t height,
 		std::vector<XUSG::Resource::uptr>& uploaders, uint32_t numParticles = 65536);
 
-	void UpdateFrame(uint8_t frameIndex, float timeStep, DirectX::CXMMATRIX viewProj);
+	void UpdateFrame(uint8_t frameIndex, float timeStep, DirectX::CXMMATRIX viewProj, DirectX::CXMVECTOR viewY);
 	void Render(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
 		XUSG::RenderTarget* pRenderTarget, XUSG::DepthStencil* pDepthStencil);
 	void Simulate(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
@@ -34,7 +34,7 @@ protected:
 
 	void computeDensity(XUSG::RayTracing::EZ::CommandList* pCommandList);
 	void computeAcceleration(XUSG::RayTracing::EZ::CommandList* pCommandList);
-	void Integrate(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void Integrate(XUSG::RayTracing::EZ::CommandList* pCommandList);
 
 	XUSG::RayTracing::BottomLevelAS::uptr m_bottomLevelAS;
 	XUSG::RayTracing::TopLevelAS::uptr m_topLevelAS;

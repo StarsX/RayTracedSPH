@@ -108,12 +108,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Content\Shaders\RTDensity.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\RTForce.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Content\Shaders\CSIntegrate.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -123,5 +117,13 @@
     <FxCompile Include="Content\Shaders\VSDrawParticles.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="Content\Shaders\RTDensity.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Content\Shaders\RTForce.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>
