@@ -137,14 +137,6 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 	};
 	pCommandList->SetComputeResources(DescriptorType::CBV, 0, static_cast<uint32_t>(size(cbvs)), cbvs);
 
-	// Set SRVs
-	const XUSG::EZ::ResourceView srvs[] =
-	{
-		XUSG::EZ::GetSRV(m_particleBuffer.get()),
-		XUSG::EZ::GetSRV(m_densityBuffer.get())
-	};
-	pCommandList->SetComputeResources(DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
-
 	computeDensity(pCommandList);
 	computeAcceleration(pCommandList);
 	Integrate(pCommandList);
@@ -353,6 +345,10 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 	const auto uav = XUSG::EZ::GetUAV(m_densityBuffer.get());
 	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav);
 
+	// Set SRV
+	const auto srv = XUSG::EZ::GetSRV(m_particleBuffer.get());
+	pCommandList->SetComputeResources(DescriptorType::SRV, 0, 1, &srv);
+
 	// Dispatch command
 	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
 }
@@ -368,6 +364,14 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 	// Set UAV
 	const auto uav = XUSG::EZ::GetUAV(m_accelerationBuffer.get());
 	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav);
+
+	// Set SRVs
+	const XUSG::EZ::ResourceView srvs[] =
+	{
+		XUSG::EZ::GetSRV(m_particleBuffer.get()),
+		XUSG::EZ::GetSRV(m_densityBuffer.get())
+	};
+	pCommandList->SetComputeResources(DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
 
 	// Dispatch command
 	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
