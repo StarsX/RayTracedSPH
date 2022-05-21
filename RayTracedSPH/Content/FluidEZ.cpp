@@ -103,11 +103,12 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 	return true;
 }
 
-void FluidEZ::UpdateFrame(uint8_t frameIndex, float timeStep, CXMMATRIX viewProj)
+void FluidEZ::UpdateFrame(uint8_t frameIndex, float timeStep, CXMMATRIX viewProj, CXMVECTOR viewY)
 {
+	const auto gravity = -9.8f * viewY;
 	const auto pCbPerFrame = reinterpret_cast<CBPerFrame*>(m_cbPerFrame->Map(frameIndex));
 	pCbPerFrame->TimeStep = timeStep;
-	pCbPerFrame->Gravity = XMFLOAT3(0.0f, -9.8f, 0.0);
+	XMStoreFloat3(&pCbPerFrame->Gravity, gravity);
 
 	const auto pCbVisualization = reinterpret_cast<CBVisualization*>(m_cbVisualization->Map(frameIndex));
 	XMStoreFloat4x4(&pCbVisualization->ViewProj, XMMatrixTranspose(viewProj));
@@ -125,9 +126,28 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 	pCommandList->BuildBLAS(m_bottomLevelAS.get());
 	pCommandList->BuildTLAS(m_topLevelAS.get(), m_instances.get());
 
+	// Set TLAS
+	pCommandList->SetTopLevelAccelerationStructure(0, m_topLevelAS.get());
+
+	// Set CBV
+	const XUSG::EZ::ResourceView cbvs[] =
+	{
+		XUSG::EZ::GetCBV(m_cbSimulation.get()),
+		XUSG::EZ::GetCBV(m_cbPerFrame.get(), frameIndex)
+	};
+	pCommandList->SetComputeResources(DescriptorType::CBV, 0, static_cast<uint32_t>(size(cbvs)), cbvs);
+
+	// Set SRVs
+	const XUSG::EZ::ResourceView srvs[] =
+	{
+		XUSG::EZ::GetSRV(m_particleBuffer.get()),
+		XUSG::EZ::GetSRV(m_densityBuffer.get())
+	};
+	pCommandList->SetComputeResources(DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
+
 	computeDensity(pCommandList);
 	computeAcceleration(pCommandList);
-	Integrate(pCommandList, frameIndex);
+	Integrate(pCommandList);
 }
 
 void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
@@ -329,20 +349,9 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 	pCommandList->RTSetShaderConfig(sizeof(float), sizeof(float));
 	pCommandList->RTSetMaxRecursionDepth(1);
 
-	// Set TLAS
-	pCommandList->SetTopLevelAccelerationStructure(0, m_topLevelAS.get());
-
 	// Set UAV
 	const auto uav = XUSG::EZ::GetUAV(m_densityBuffer.get());
 	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav);
-
-	// Set SRV
-	const auto srv = XUSG::EZ::GetSRV(m_particleBuffer.get());
-	pCommandList->SetComputeResources(DescriptorType::SRV, 0, 1, &srv);
-
-	// Set CBV
-	const auto cbv = XUSG::EZ::GetCBV(m_cbSimulation.get());
-	pCommandList->SetComputeResources(DescriptorType::CBV, 0, 1, &cbv);
 
 	// Dispatch command
 	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
@@ -356,30 +365,15 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 	pCommandList->RTSetShaderConfig(sizeof(XMFLOAT4[2]), sizeof(XMFLOAT4));
 	pCommandList->RTSetMaxRecursionDepth(1);
 
-	// Set TLAS
-	pCommandList->SetTopLevelAccelerationStructure(0, m_topLevelAS.get());
-
 	// Set UAV
 	const auto uav = XUSG::EZ::GetUAV(m_accelerationBuffer.get());
 	pCommandList->SetComputeResources(DescriptorType::UAV, 0, 1, &uav);
-
-	// Set SRVs
-	const XUSG::EZ::ResourceView srvs[] =
-	{
-		XUSG::EZ::GetSRV(m_particleBuffer.get()),
-		XUSG::EZ::GetSRV(m_densityBuffer.get())
-	};
-	pCommandList->SetComputeResources(DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
-
-	// Set CBV
-	const auto cbv = XUSG::EZ::GetCBV(m_cbSimulation.get());
-	pCommandList->SetComputeResources(DescriptorType::CBV, 0, 1, &cbv);
 
 	// Dispatch command
 	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
 }
 
-void FluidEZ::Integrate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex)
+void FluidEZ::Integrate(RayTracing::EZ::CommandList* pCommandList)
 {
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_INTEGRATE]);
@@ -395,14 +389,6 @@ void FluidEZ::Integrate(RayTracing::EZ::CommandList* pCommandList, uint8_t frame
 	// Set SRV
 	const auto srv = XUSG::EZ::GetSRV(m_accelerationBuffer.get());
 	pCommandList->SetComputeResources(DescriptorType::SRV, 0, 1, &srv);
-
-	// Set CBV
-	const XUSG::EZ::ResourceView cbvs[] =
-	{
-		XUSG::EZ::GetCBV(m_cbSimulation.get()),
-		XUSG::EZ::GetCBV(m_cbPerFrame.get(), frameIndex)
-	};
-	pCommandList->SetComputeResources(DescriptorType::CBV, 0, static_cast<uint32_t>(size(cbvs)), cbvs);
 
 	// Dispatch command
 	pCommandList->Dispatch(XUSG_DIV_UP(m_numParticles, GROUP_SIZE), 1, 1);

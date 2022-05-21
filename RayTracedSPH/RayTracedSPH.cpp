@@ -145,7 +145,7 @@ void RayTracedSPH::LoadAssets()
 	// Create m_commandListEZ.
 	AccelerationStructure::SetUAVCount(2);
 	m_commandListEZ = RayTracing::EZ::CommandList::MakeUnique();
-	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 24, 16,
+	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 24, 1,
 		nullptr, nullptr, nullptr, 1, 1, 1, 1, 1), ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);
@@ -182,10 +182,10 @@ void RayTracedSPH::LoadAssets()
 
 	// View initialization
 	m_focusPt = XMFLOAT3(0.0f, 0.5f, 0.0f);
-	m_eyePt = XMFLOAT3(0.0f, 0.8f, -2.0f);
 	const auto focusPt = XMLoadFloat3(&m_focusPt);
-	const auto eyePt = XMLoadFloat3(&m_eyePt);
+	const auto eyePt = focusPt - XMVectorSet(0.0f, 0.0f, 2.5f, 0.0f);
 	const auto view = XMMatrixLookAtLH(eyePt, focusPt, XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f));
+	XMStoreFloat3(&m_eyePt, eyePt);
 	XMStoreFloat4x4(&m_view, view);
 }
 
@@ -206,8 +206,9 @@ void RayTracedSPH::OnUpdate()
 	//const auto eyePt = XMLoadFloat3(&m_eyePt);
 	const auto view = XMLoadFloat4x4(&m_view);
 	const auto proj = XMLoadFloat4x4(&m_proj);
+	const auto viewY = XMVectorSet(m_view._12, m_view._22, m_view._32, 1.0f);
 
-	m_fluid->UpdateFrame(m_frameIndex, timeStep, view * proj);
+	m_fluid->UpdateFrame(m_frameIndex, (min)(timeStep, 1.0f / 320.0f), view * proj, viewY);
 }
 
 // Render the scene.
