@@ -34,7 +34,7 @@ protected:
 
 	void computeDensity(XUSG::RayTracing::EZ::CommandList* pCommandList);
 	void computeAcceleration(XUSG::RayTracing::EZ::CommandList* pCommandList);
-	void Integrate(XUSG::RayTracing::EZ::CommandList* pCommandList);
+	void integrate(XUSG::RayTracing::EZ::CommandList* pCommandList);
 
 	XUSG::RayTracing::BottomLevelAS::uptr m_bottomLevelAS;
 	XUSG::RayTracing::TopLevelAS::uptr m_topLevelAS;
