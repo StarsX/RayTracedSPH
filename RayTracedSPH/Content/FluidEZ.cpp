@@ -139,7 +139,7 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 
 	computeDensity(pCommandList);
 	computeAcceleration(pCommandList);
-	Integrate(pCommandList);
+	integrate(pCommandList);
 }
 
 void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
@@ -378,7 +378,7 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
 }
 
-void FluidEZ::Integrate(RayTracing::EZ::CommandList* pCommandList)
+void FluidEZ::integrate(RayTracing::EZ::CommandList* pCommandList)
 {
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_INTEGRATE]);
