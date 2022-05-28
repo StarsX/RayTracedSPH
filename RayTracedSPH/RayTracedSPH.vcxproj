@@ -116,7 +116,9 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
     <ClInclude Include="XUSG\Core\XUSG.h" />
     <ClInclude Include="XUSG\Helper\XUSG-EZ.h" />
     <ClInclude Include="XUSG\Helper\XUSGRayTracing-EZ.h" />
+    <ClInclude Include="XUSG\Helper\XUSGUltimate-EZ.h" />
     <ClInclude Include="XUSG\RayTracing\XUSGRayTracing.h" />
+    <ClInclude Include="XUSG\Ultimate\XUSGUltimate.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DXFramework.cpp">
