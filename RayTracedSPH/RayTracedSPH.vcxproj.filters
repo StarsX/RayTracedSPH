@@ -57,9 +57,6 @@
     <ClInclude Include="Common\D3D12RaytracingFallback.h">
       <Filter>Common\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Common\D3D12RaytracingHelpers.hpp">
-      <Filter>Common\Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Common\d3d12.h">
       <Filter>Common\Header Files</Filter>
     </ClInclude>
@@ -83,6 +80,15 @@
     </ClInclude>
     <ClInclude Include="XUSG\Helper\XUSGUltimate-EZ.h">
       <Filter>XUSG</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\d3dcommon.h">
+      <Filter>Common\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\dxgicommon.h">
+      <Filter>Common\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\dxgiformat.h">
+      <Filter>Common\Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
