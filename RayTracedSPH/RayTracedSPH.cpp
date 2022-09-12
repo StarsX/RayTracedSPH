@@ -332,8 +332,8 @@ void RayTracedSPH::PopulateCommandList()
 
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 0.0f };
 	const auto renderTarget = m_renderTargets[m_frameIndex].get();
-	auto rtv = XUSG::EZ::GetRTV(renderTarget);
-	auto dsv = XUSG::EZ::GetDSV(m_depth.get());
+	const auto rtv = XUSG::EZ::GetRTV(renderTarget);
+	const auto dsv = XUSG::EZ::GetDSV(m_depth.get());
 	pCommandList->ClearRenderTargetView(rtv, clearColor);
 	pCommandList->ClearDepthStencilView(dsv, ClearFlag::DEPTH, 1.0f);
 
