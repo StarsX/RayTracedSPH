@@ -145,8 +145,8 @@ void RayTracedSPH::LoadAssets()
 	// Create m_commandListEZ.
 	AccelerationStructure::SetUAVCount(2);
 	m_commandListEZ = RayTracing::EZ::CommandList::MakeUnique();
-	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 32, 1,
-		nullptr, nullptr, nullptr, 1, 1, 1, 1, 1), ThrowIfFailed(E_FAIL));
+	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 32, nullptr,
+		nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 1, 1), ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);
 	m_fluid = make_unique<FluidEZ>();
@@ -340,7 +340,7 @@ void RayTracedSPH::PopulateCommandList()
 	// Fluid rendering (simulation and visualization)
 	m_fluid->Render(pCommandList, m_frameIndex, renderTarget, m_depth.get());
 
-	XUSG_N_RETURN(pCommandList->CloseForPresent(renderTarget), ThrowIfFailed(E_FAIL));
+	XUSG_N_RETURN(pCommandList->Close(renderTarget), ThrowIfFailed(E_FAIL));
 }
 
 // Wait for pending GPU work to complete.
