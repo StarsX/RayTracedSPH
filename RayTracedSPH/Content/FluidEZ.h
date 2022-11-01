@@ -68,7 +68,7 @@ protected:
 		NUM_SHADER
 	};
 
-	XUSG::ShaderPool::uptr	m_shaderPool;
+	XUSG::ShaderLib::uptr	m_shaderLib;
 	XUSG::Blob m_shaders[NUM_SHADER];
 
 	DirectX::XMFLOAT2		m_viewport;

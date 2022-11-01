@@ -67,7 +67,7 @@ struct ParticleAABB
 FluidEZ::FluidEZ() :
 	m_instances()
 {
-	m_shaderPool = ShaderPool::MakeUnique();
+	m_shaderLib = ShaderLib::MakeUnique();
 }
 
 FluidEZ::~FluidEZ()
@@ -288,16 +288,16 @@ bool FluidEZ::createShaders()
 	auto psIndex = 0u;
 	auto csIndex = 0u;
 
-	XUSG_X_RETURN(m_shaders[RT_DENSITY], m_shaderPool->CreateShader(
+	XUSG_X_RETURN(m_shaders[RT_DENSITY], m_shaderLib->CreateShader(
 		Shader::Stage::CS, csIndex++, L"RTDensity.cso"), false);
-	XUSG_X_RETURN(m_shaders[RT_FORCE], m_shaderPool->CreateShader(
+	XUSG_X_RETURN(m_shaders[RT_FORCE], m_shaderLib->CreateShader(
 		Shader::Stage::CS, csIndex++, L"RTForce.cso"), false);
-	XUSG_X_RETURN(m_shaders[CS_INTEGRATE], m_shaderPool->CreateShader(
+	XUSG_X_RETURN(m_shaders[CS_INTEGRATE], m_shaderLib->CreateShader(
 		Shader::Stage::CS, csIndex++, L"CSIntegrate.cso"), false);
 
-	XUSG_X_RETURN(m_shaders[VS_DRAW_PARTICLES], m_shaderPool->CreateShader(
+	XUSG_X_RETURN(m_shaders[VS_DRAW_PARTICLES], m_shaderLib->CreateShader(
 		Shader::Stage::VS, vsIndex++, L"VSDrawParticles.cso"), false);
-	XUSG_X_RETURN(m_shaders[PS_DRAW_PARTICLES], m_shaderPool->CreateShader(
+	XUSG_X_RETURN(m_shaders[PS_DRAW_PARTICLES], m_shaderLib->CreateShader(
 		Shader::Stage::PS, psIndex++, L"PSDrawParticles.cso"), false);
 
 	return true;
@@ -337,7 +337,8 @@ bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandL
 void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 {
 	// Set pipeline state
-	pCommandList->RTSetShaderLibrary(m_shaders[RT_DENSITY]);
+	static const void* shaders[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
+	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_DENSITY]);// , static_cast<uint32_t>(size(shaders)), shaders);
 	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL);
 	pCommandList->RTSetShaderConfig(sizeof(float), sizeof(float));
 	pCommandList->RTSetMaxRecursionDepth(1);
@@ -357,7 +358,8 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 {
 	// Set pipeline state
-	pCommandList->RTSetShaderLibrary(m_shaders[RT_FORCE]);
+	static const void* shaders[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
+	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_FORCE]);//, static_cast<uint32_t>(size(shaders)), shaders);
 	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL);
 	pCommandList->RTSetShaderConfig(sizeof(XMFLOAT4[2]), sizeof(XMFLOAT4));
 	pCommandList->RTSetMaxRecursionDepth(1);
