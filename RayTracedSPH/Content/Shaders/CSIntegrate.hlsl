@@ -8,7 +8,7 @@
 //--------------------------------------------------------------------------------------
 // Constant buffer
 //--------------------------------------------------------------------------------------
-cbuffer cbSimulation : register (b1)
+cbuffer cbPerFrame : register (b1)
 {
 	float	g_timeStep;
 	float3	g_gravity;

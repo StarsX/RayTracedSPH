@@ -89,7 +89,7 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 
 	// Create density buffer
 	m_densityBuffer = TypedBuffer::MakeUnique();
-	XUSG_N_RETURN(m_densityBuffer->Create(pDevice, m_numParticles, sizeof(uint16_t), Format::R16_FLOAT,
+	XUSG_N_RETURN(m_densityBuffer->Create(pDevice, m_numParticles, sizeof(float), Format::R32_FLOAT,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
 
 	// Create particle Acceleration buffer

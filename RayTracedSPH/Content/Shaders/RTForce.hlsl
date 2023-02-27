@@ -56,7 +56,7 @@ void raygenMain()
 	payload.Force = 0.0;
 	TraceRay(g_bvhParticles, RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 1, 0, ray, payload);
 
-	g_rwAccelerations[index] = payload.Force / density;
+	g_rwAccelerations[index] = density > 0.0 ? payload.Force / density : 0.0;
 }
 
 //--------------------------------------------------------------------------------------
