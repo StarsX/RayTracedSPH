@@ -305,8 +305,6 @@ bool FluidEZ::createShaders()
 
 bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandList)
 {
-	AccelerationStructure::SetFrameCount(FrameCount);
-
 	// Set geometries
 	GeometryFlag geometryFlag = GeometryFlag::NONE; // Any hit needs non-opaque (the default flag is opaque only)
 	BottomLevelAS::SetAABBGeometries(m_geometry, 1, &m_particleAABBBuffer->GetVBV(), &geometryFlag);
