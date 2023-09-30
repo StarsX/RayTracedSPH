@@ -63,10 +63,10 @@ private:
 	// App resources.
 	std::unique_ptr<FluidEZ> m_fluid;
 	XUSG::DepthStencil::uptr m_depth;
-	DirectX::XMFLOAT4X4	m_proj;
-	DirectX::XMFLOAT4X4	m_view;
-	DirectX::XMFLOAT3	m_focusPt;
-	DirectX::XMFLOAT3	m_eyePt;
+	XMFLOAT4X4	m_proj;
+	XMFLOAT4X4	m_view;
+	XMFLOAT3	m_focusPt;
+	XMFLOAT3	m_eyePt;
 
 	// Synchronization objects.
 	uint32_t	m_frameIndex;
@@ -81,7 +81,7 @@ private:
 
 	// User camera interactions
 	bool m_tracking;
-	DirectX::XMFLOAT2 m_mousePt;
+	XMFLOAT2 m_mousePt;
 
 	// Screen-shot helpers and state
 	XUSG::Buffer::uptr	m_readBuffer;

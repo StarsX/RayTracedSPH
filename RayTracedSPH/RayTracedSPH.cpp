@@ -186,7 +186,7 @@ void RayTracedSPH::LoadAssets()
 	m_focusPt = XMFLOAT3(0.0f, 0.5f, 0.0f);
 	const auto focusPt = XMLoadFloat3(&m_focusPt);
 	const auto eyePt = focusPt - XMVectorSet(0.0f, 0.0f, 2.5f, 0.0f);
-	const auto view = XMMatrixLookAtLH(eyePt, focusPt, XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f));
+	const auto view = XMMatrixLookAtLH(eyePt, focusPt, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
 	XMStoreFloat3(&m_eyePt, eyePt);
 	XMStoreFloat4x4(&m_view, view);
 }

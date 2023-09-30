@@ -335,8 +335,8 @@ bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandL
 void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 {
 	// Set pipeline state
-	static const void* shaders[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
-	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_DENSITY]);// , static_cast<uint32_t>(size(shaders)), shaders);
+	static const wchar_t* shaderNames[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
+	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_DENSITY], static_cast<uint32_t>(size(shaderNames)), shaderNames);
 	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL);
 	pCommandList->RTSetShaderConfig(sizeof(float), sizeof(float));
 	pCommandList->RTSetMaxRecursionDepth(1);
