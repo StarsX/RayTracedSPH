@@ -350,7 +350,7 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
 
 	// Dispatch command
-	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
+	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
 }
 
 void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
@@ -375,7 +375,7 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
 
 	// Dispatch command
-	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, MissShaderName);
+	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
 }
 
 void FluidEZ::integrate(RayTracing::EZ::CommandList* pCommandList)
