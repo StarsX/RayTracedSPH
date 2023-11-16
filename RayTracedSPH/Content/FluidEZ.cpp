@@ -315,6 +315,10 @@ bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandL
 	XUSG_N_RETURN(pCommandList->PreBuildBLAS(m_bottomLevelAS.get(), 1, m_geometry, BuildFlag::NONE), false);
 	XUSG_N_RETURN(pCommandList->PreBuildTLAS(m_topLevelAS.get(), 1), false);
 
+	// Allocate AS buffers
+	XUSG_N_RETURN(pCommandList->AllocateAccelerationStructure(m_bottomLevelAS.get()), false);
+	XUSG_N_RETURN(pCommandList->AllocateAccelerationStructure(m_topLevelAS.get()), false);
+
 	// Set instance
 	XMFLOAT3X4 matrix;
 	XMStoreFloat3x4(&matrix, XMMatrixIdentity());
