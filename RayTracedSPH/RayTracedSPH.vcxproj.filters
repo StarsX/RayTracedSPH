@@ -129,13 +129,11 @@
     <FxCompile Include="Content\Shaders\VSDrawParticles.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="Content\Shaders\RTDensity.hlsl">
+    <FxCompile Include="Content\Shaders\RTDensity.hlsl">
       <Filter>Shaders</Filter>
-    </CustomBuild>
-    <CustomBuild Include="Content\Shaders\RTForce.hlsl">
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\RTForce.hlsl">
       <Filter>Shaders</Filter>
-    </CustomBuild>
+    </FxCompile>
   </ItemGroup>
 </Project>
