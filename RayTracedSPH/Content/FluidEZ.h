@@ -48,7 +48,7 @@ protected:
 	XUSG::ConstantBuffer::uptr		m_cbVisualization;
 
 	XUSG::RayTracing::GeometryBuffer m_geometry;
-	XUSG::Resource::uptr m_instances;
+	XUSG::Buffer::uptr m_instances;
 
 	// Shader tables
 	static const wchar_t* HitGroupName;

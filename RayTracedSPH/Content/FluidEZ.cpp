@@ -98,9 +98,10 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT), false);
 
 	XUSG_N_RETURN(buildAccelerationStructures(pCommandList), false);
-	XUSG_N_RETURN(createShaders(), false);
+	XUSG_N_RETURN(pCommandList->CreatePipelineLayouts(nullptr, nullptr,
+		nullptr, nullptr, nullptr, nullptr, nullptr, 1, 1), false);
 
-	return true;
+	return createShaders();
 }
 
 void FluidEZ::UpdateFrame(uint8_t frameIndex, float timeStep, CXMMATRIX viewProj, CXMVECTOR viewY)
@@ -323,7 +324,7 @@ bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandL
 	XMFLOAT3X4 matrix;
 	XMStoreFloat3x4(&matrix, XMMatrixIdentity());
 	float* const pTransform[] = { reinterpret_cast<float*>(&matrix) };
-	m_instances = Resource::MakeUnique();
+	m_instances = Buffer::MakeUnique();
 	const BottomLevelAS* const ppBottomLevelAS[] = { m_bottomLevelAS.get() };
 	TopLevelAS::SetInstances(pCommandList->GetRTDevice(), m_instances.get(), 1, &ppBottomLevelAS[0], &pTransform[0]);
 

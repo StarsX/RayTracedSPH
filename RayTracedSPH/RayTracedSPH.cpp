@@ -145,10 +145,8 @@ void RayTracedSPH::LoadAssets()
 	XUSG_N_RETURN(commandList->CreateInterface(), ThrowIfFailed(E_FAIL));
 
 	// Create m_commandListEZ.
-	AccelerationStructure::SetUAVCount(2);
 	m_commandListEZ = RayTracing::EZ::CommandList::MakeUnique();
-	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 32, nullptr,
-		nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 1, 1), ThrowIfFailed(E_FAIL));
+	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 32), ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);
 	m_fluid = make_unique<FluidEZ>();
