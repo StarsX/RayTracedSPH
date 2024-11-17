@@ -99,7 +99,8 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 
 	XUSG_N_RETURN(buildAccelerationStructures(pCommandList), false);
 	XUSG_N_RETURN(pCommandList->CreatePipelineLayouts(nullptr, nullptr,
-		nullptr, nullptr, nullptr, nullptr, nullptr, 1, 1), false);
+		nullptr, nullptr, nullptr, nullptr, nullptr,
+		nullptr, nullptr, nullptr, 1, 1), false);
 
 	return createShaders();
 }
@@ -107,11 +108,11 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 void FluidEZ::UpdateFrame(uint8_t frameIndex, float timeStep, CXMMATRIX viewProj, CXMVECTOR viewY)
 {
 	const auto gravity = -9.8f * viewY;
-	const auto pCbPerFrame = reinterpret_cast<CBPerFrame*>(m_cbPerFrame->Map(frameIndex));
+	const auto pCbPerFrame = static_cast<CBPerFrame*>(m_cbPerFrame->Map(frameIndex));
 	pCbPerFrame->TimeStep = timeStep;
 	XMStoreFloat3(&pCbPerFrame->Gravity, gravity);
 
-	const auto pCbVisualization = reinterpret_cast<CBVisualization*>(m_cbVisualization->Map(frameIndex));
+	const auto pCbVisualization = static_cast<CBVisualization*>(m_cbVisualization->Map(frameIndex));
 	XMStoreFloat4x4(&pCbVisualization->ViewProj, XMMatrixTranspose(viewProj));
 }
 
