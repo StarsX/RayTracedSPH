@@ -308,8 +308,9 @@ bool FluidEZ::createShaders()
 bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandList)
 {
 	// Set geometries
-	GeometryFlag geometryFlag = GeometryFlag::NONE; // Any hit needs non-opaque (the default flag is opaque only)
-	BottomLevelAS::SetAABBGeometries(m_geometry, 1, &m_particleAABBBuffer->GetVBV(), &geometryFlag);
+	BottomLevelAS::GeometryDesc geometry;
+	BottomLevelAS::SetAABBGeometry(geometry, m_particleAABBBuffer->GetVBV());
+	BottomLevelAS::SetGeometries(m_geometry, 1, &geometry);
 
 	// Prebuild
 	m_bottomLevelAS = BottomLevelAS::MakeUnique();
@@ -324,10 +325,10 @@ bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandL
 	// Set instance
 	XMFLOAT3X4 matrix;
 	XMStoreFloat3x4(&matrix, XMMatrixIdentity());
-	float* const pTransform[] = { reinterpret_cast<float*>(&matrix) };
 	m_instances = Buffer::MakeUnique();
-	const BottomLevelAS* const ppBottomLevelAS[] = { m_bottomLevelAS.get() };
-	TopLevelAS::SetInstances(pCommandList->GetRTDevice(), m_instances.get(), 1, &ppBottomLevelAS[0], &pTransform[0]);
+	TopLevelAS::InstanceDesc instance;
+	TopLevelAS::SetInstance(instance, m_bottomLevelAS.get(), reinterpret_cast<float*>(&matrix));
+	TopLevelAS::SetInstances(pCommandList->GetRTDevice(), m_instances.get(), 1, &instance);
 
 	// Build bottom level ASs
 	pCommandList->BuildBLAS(m_bottomLevelAS.get());
@@ -343,7 +344,7 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 	// Set pipeline state
 	static const wchar_t* shaderNames[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
 	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_DENSITY], static_cast<uint32_t>(size(shaderNames)), shaderNames);
-	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL);
+	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL_PRIMITIVE);
 	pCommandList->RTSetShaderConfig(sizeof(float), sizeof(float));
 	pCommandList->RTSetMaxRecursionDepth(1);
 
@@ -364,7 +365,7 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 	// Set pipeline state
 	static const void* shaders[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
 	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_FORCE]);//, static_cast<uint32_t>(size(shaders)), shaders);
-	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL);
+	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL_PRIMITIVE);
 	pCommandList->RTSetShaderConfig(sizeof(XMFLOAT4[2]), sizeof(XMFLOAT4));
 	pCommandList->RTSetMaxRecursionDepth(1);
 
