@@ -55,9 +55,8 @@
     </ClCompile>
     <PostBuildEvent>
       <Command>COPY /Y "$(OutDir)*.cso" "$(ProjectDir)..\Bin\"
-
+COPY /Y "$(OutDir)*spv" "$(ProjectDir)..\Bin\"
 COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"
-
 COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir)..\Bin\"
 </Command>
     </PostBuildEvent>
@@ -67,6 +66,9 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
     </Link>
     <FxCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)Content\Shaders;$(ProjectDir)Content;$(ProjectDir)XUSG\Shaders;$(ProjectDir)XUSG;$(ProjectDir)</AdditionalIncludeDirectories>
+      <ShaderModel>6.3</ShaderModel>
+      <AdditionalOptions>-Wno-ignored-attributes; -Qembed_debug</AdditionalOptions>
+      <AllResourcesBound>true</AllResourcesBound>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -90,16 +92,29 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
     </Link>
     <PostBuildEvent>
       <Command>COPY /Y "$(OutDir)*.cso" "$(ProjectDir)..\Bin\"
-
+COPY /Y "$(OutDir)*spv" "$(ProjectDir)..\Bin\"
 COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"
-
 COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir)..\Bin\"
 </Command>
     </PostBuildEvent>
     <FxCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)Content\Shaders;$(ProjectDir)Content;$(ProjectDir)XUSG\Shaders;$(ProjectDir)XUSG;$(ProjectDir)</AdditionalIncludeDirectories>
+      <ShaderModel>6.3</ShaderModel>
+      <AdditionalOptions>-Wno-ignored-attributes</AdditionalOptions>
+      <AllResourcesBound>true</AllResourcesBound>
     </FxCompile>
   </ItemDefinitionGroup>
+  <Target Name="CompileSpirv" BeforeTargets="ClCompile" DependsOnTargets="FxCompile">
+    <ItemGroup>
+      <SpirvShader Include="@(FxCompile)">
+        <Profile Condition="'%(ShaderType)' == 'Vertex'">vs_6_3</Profile>
+        <Profile Condition="'%(ShaderType)' == 'Pixel'">ps_6_3</Profile>
+        <Profile Condition="'%(ShaderType)' == 'Compute'">cs_6_3</Profile>
+        <Profile Condition="'%(ShaderType)' == 'Library'">lib_6_3</Profile>
+      </SpirvShader>
+    </ItemGroup>
+    <Exec Command="&quot;$(VULKAN_SDK)\Bin\dxc.exe&quot; -spirv -T %(SpirvShader.Profile) -E main -fspv-target-env=vulkan1.2 -all-resources-bound -Zpc -fvk-use-dx-position-w -enable-16bit-types -Wno-conversion -D XUSG_SPIRV=1 -I &quot;$(ProjectDir)Shaders&quot; -I &quot;$(ProjectDir)Content&quot; -Fo &quot;$(OutDir)%(SpirvShader.Filename).spv&quot; &quot;%(SpirvShader.FullPath)&quot;" />
+  </Target>
   <ItemGroup>
     <ClInclude Include="Common\d3d12.h" />
     <ClInclude Include="Common\D3D12RaytracingFallback.h" />
@@ -154,21 +169,15 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
   <ItemGroup>
     <FxCompile Include="Content\Shaders\CSIntegrate.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="Content\Shaders\PSDrawParticles.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="Content\Shaders\RTDensity.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.3</ShaderModel>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -178,14 +187,9 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(ProjectDir)..\Bin\dxc.exe" /Fo"$(OutDir)%(Filename).cso" /T"lib_6_3" /nologo "%(FullPath)" /I "$(ProjectDir)Content"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
-      <AllResourcesBound Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</AllResourcesBound>
-      <AllResourcesBound Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</AllResourcesBound>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug</AdditionalOptions>
     </FxCompile>
     <FxCompile Include="Content\Shaders\RTForce.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.3</ShaderModel>
-      <AllResourcesBound Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</AllResourcesBound>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.3</ShaderModel>
-      <AllResourcesBound Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</AllResourcesBound>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -197,12 +201,11 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).cso</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).cso</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(ProjectDir)..\Bin\dxc.exe" /Zi /Od /Fo"$(OutDir)%(Filename).cso" /T"lib_6_3" /nologo "%(FullPath)" /I "$(ProjectDir)Content"</Command>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-Qembed_debug</AdditionalOptions>
     </FxCompile>
     <FxCompile Include="Content\Shaders\VSDrawParticles.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

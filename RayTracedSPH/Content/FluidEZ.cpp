@@ -99,8 +99,8 @@ bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, ui
 
 	XUSG_N_RETURN(buildAccelerationStructures(pCommandList), false);
 	XUSG_N_RETURN(pCommandList->CreatePipelineLayouts(nullptr, nullptr,
-		nullptr, nullptr, nullptr, nullptr, nullptr,
-		nullptr, nullptr, nullptr, 1, 1), false);
+		nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+		nullptr, nullptr, nullptr, nullptr, nullptr, 1, AS_SPACE), false);
 
 	return createShaders();
 }
@@ -125,6 +125,8 @@ void FluidEZ::Render(RayTracing::EZ::CommandList* pCommandList, uint8_t frameInd
 
 void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
+	const auto cbvSpace = 0u;
+
 	pCommandList->BuildBLAS(m_bottomLevelAS.get());
 	pCommandList->BuildTLAS(m_topLevelAS.get(), m_instances.get());
 
@@ -137,7 +139,7 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 		XUSG::EZ::GetCBV(m_cbSimulation.get()),
 		XUSG::EZ::GetCBV(m_cbPerFrame.get(), frameIndex)
 	};
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, static_cast<uint32_t>(size(cbvs)), cbvs);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, static_cast<uint32_t>(size(cbvs)), cbvs, cbvSpace);
 
 	computeDensity(pCommandList);
 	computeAcceleration(pCommandList);
@@ -147,6 +149,10 @@ void FluidEZ::Simulate(RayTracing::EZ::CommandList* pCommandList, uint8_t frameI
 void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
 	RenderTarget* pRenderTarget, DepthStencil* pDepthStencil)
 {
+	const auto vulkan = XUSG::Device::GetApi() == API::VULKAN;
+	const auto cbvSpace = 0u;
+	const auto srvSpace = vulkan ? 1u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_DRAW_PARTICLES]);
 	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_DRAW_PARTICLES]);
@@ -159,11 +165,11 @@ void FluidEZ::Visualize(RayTracing::EZ::CommandList* pCommandList, uint8_t frame
 
 	// Set CBV
 	const auto cbv = XUSG::EZ::GetCBV(m_cbVisualization.get(), frameIndex);
-	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::CBV, 0, 1, &cbv);
+	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::CBV, 0, 1, &cbv, cbvSpace);
 
 	// Set SRV
 	const auto srv = XUSG::EZ::GetSRV(m_particleBuffer.get());
-	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv);
+	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 	// Set viewport
 	Viewport viewport(0.0f, 0.0f, m_viewport.x, m_viewport.y);
@@ -229,8 +235,8 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 	// Create particle AABB buffer
 	m_particleAABBBuffer = VertexBuffer::MakeUnique();
 	XUSG_N_RETURN(m_particleAABBBuffer->Create(pDevice, m_numParticles, sizeof(ParticleAABB),
-		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1, nullptr,
-		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"ParticleAABBs"), false);
+		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::ACCELERATION_STRUCTURE_BUILD_INPUT,
+		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, MemoryFlag::NONE, L"ParticleAABBs"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
 	// upload data to the AABB buffer
@@ -341,6 +347,10 @@ bool FluidEZ::buildAccelerationStructures(RayTracing::EZ::CommandList* pCommandL
 
 void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 {
+	const auto vulkan = XUSG::Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+	const auto uavSpace = vulkan ? 2u : 0u;
+
 	// Set pipeline state
 	static const wchar_t* shaderNames[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
 	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_DENSITY], static_cast<uint32_t>(size(shaderNames)), shaderNames);
@@ -350,11 +360,11 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 
 	// Set UAV
 	const auto uav = XUSG::EZ::GetUAV(m_densityBuffer.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav, uavSpace);
 
 	// Set SRV
 	const auto srv = XUSG::EZ::GetSRV(m_particleBuffer.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 	// Dispatch command
 	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
@@ -362,6 +372,10 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 
 void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 {
+	const auto vulkan = XUSG::Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+	const auto uavSpace = vulkan ? 2u : 0u;
+
 	// Set pipeline state
 	static const void* shaders[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
 	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_FORCE]);//, static_cast<uint32_t>(size(shaders)), shaders);
@@ -371,7 +385,7 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 
 	// Set UAV
 	const auto uav = XUSG::EZ::GetUAV(m_accelerationBuffer.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav, uavSpace);
 
 	// Set SRVs
 	const XUSG::EZ::ResourceView srvs[] =
@@ -379,7 +393,7 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 		XUSG::EZ::GetSRV(m_particleBuffer.get()),
 		XUSG::EZ::GetSRV(m_densityBuffer.get())
 	};
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs, srvSpace);
 
 	// Dispatch command
 	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
@@ -387,6 +401,10 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 
 void FluidEZ::integrate(RayTracing::EZ::CommandList* pCommandList)
 {
+	const auto vulkan = XUSG::Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+	const auto uavSpace = vulkan ? 2u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_INTEGRATE]);
 
@@ -396,11 +414,11 @@ void FluidEZ::integrate(RayTracing::EZ::CommandList* pCommandList)
 		XUSG::EZ::GetUAV(m_particleBuffer.get()),
 		XUSG::EZ::GetUAV(m_particleAABBBuffer.get())
 	};
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, static_cast<uint32_t>(size(uavs)), uavs);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, static_cast<uint32_t>(size(uavs)), uavs, uavSpace);
 
 	// Set SRV
 	const auto srv = XUSG::EZ::GetSRV(m_accelerationBuffer.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 	// Dispatch command
 	pCommandList->Dispatch(XUSG_DIV_UP(m_numParticles, GROUP_SIZE), 1, 1);

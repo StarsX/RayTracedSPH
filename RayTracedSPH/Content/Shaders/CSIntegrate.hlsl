@@ -8,7 +8,8 @@
 //--------------------------------------------------------------------------------------
 // Constant buffer
 //--------------------------------------------------------------------------------------
-cbuffer cbPerFrame : register (b1)
+[[vk::binding(1, 0)]]
+cbuffer cbPerFrame : register(b1)
 {
 	float	g_timeStep;
 	float3	g_gravity;
@@ -17,9 +18,13 @@ cbuffer cbPerFrame : register (b1)
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-RWStructuredBuffer<Particle> g_rwParticles : register (u0);
-RWStructuredBuffer<ParticleAABB> g_rwParticleAABBs : register (u1);
-Buffer<float3> g_roAccelerations : register (t0);
+[[vk::binding(0, 2)]]
+RWStructuredBuffer<Particle> g_rwParticles : register(u0);
+[[vk::binding(1, 2)]]
+RWStructuredBuffer<ParticleAABB> g_rwParticleAABBs : register(u1);
+
+[[vk::binding(0, 1)]]
+Buffer<float3> g_roAccelerations : register(t0);
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)

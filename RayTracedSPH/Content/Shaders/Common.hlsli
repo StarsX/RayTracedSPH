@@ -20,7 +20,8 @@ struct ParticleAABB
 //--------------------------------------------------------------------------------------
 // Constant buffer
 //--------------------------------------------------------------------------------------
-cbuffer cbSimulation : register (b0)
+[[vk::binding(0, 0)]]
+cbuffer cbSimulation : register(b0)
 {
 	float	g_smoothRadius;
 	float	g_pressureStiffness;

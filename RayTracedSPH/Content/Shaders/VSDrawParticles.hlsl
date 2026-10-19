@@ -7,12 +7,14 @@
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-StructuredBuffer<Particle> g_roParticles : register (t0);
-
-cbuffer cbVisualization : register (b0)
+[[vk::binding(0, 0)]]
+cbuffer cbVisualization : register(b0)
 {
 	matrix g_viewProj;
 }
+
+[[vk::binding(0, 1)]]
+StructuredBuffer<Particle> g_roParticles : register(t0);
 
 float4 main(uint vid : SV_VERTEXID) : SV_POSITION
 {

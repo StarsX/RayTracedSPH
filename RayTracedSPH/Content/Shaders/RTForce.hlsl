@@ -21,10 +21,13 @@ struct HitAttributes
 };
 
 //--------------------------------------------------------------------------------------
-// Buffer
+// Buffers
 //--------------------------------------------------------------------------------------
-RWBuffer<float3> g_rwAccelerations : register (u0);
-Buffer<float> g_roDensities : register (t1);
+[[vk::binding(0, 2)]]
+RWBuffer<float3> g_rwAccelerations : register(u0);
+
+[[vk::binding(1, 1)]]
+Buffer<float> g_roDensities : register(t1);
 
 //--------------------------------------------------------------------------------------
 // Pressure calculation

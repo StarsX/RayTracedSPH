@@ -5,13 +5,12 @@
 #include "Common.hlsli"
 #include "SharedConst.h"
 
-typedef RaytracingAccelerationStructure RaytracingAS;
-
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-StructuredBuffer<Particle> g_roParticles : register (t0);
-RaytracingAS g_bvhParticles : register (t0, space1);
+[[vk::binding(0, 1)]]
+StructuredBuffer<Particle> g_roParticles : register(t0);
+RaytracingAccelerationStructure g_bvhParticles : register(t0, SPACE(AS_SPACE));
 
 //--------------------------------------------------------------------------------------
 // Generate ray

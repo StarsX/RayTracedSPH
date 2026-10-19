@@ -60,87 +60,112 @@ void RayTracedSPH::OnInit()
 // Load the rendering pipeline dependencies.
 void RayTracedSPH::LoadPipeline()
 {
-	auto dxgiFactoryFlags = 0u;
+	if (XUSG::Device::GetApi() == API::VULKAN)
+	{
+		m_device = RayTracing::Device::MakeUnique();
+		if (SUCCEEDED((m_device->Create(nullptr, 0, L"VulkanDevice"))))
+		{
+			XUSG_N_RETURN(m_device->CreateInterface(), ThrowIfFailed(E_FAIL));
+			m_title += L" (Vulkan)";
+		}
+		else
+		{
+			XUSG::Device::UnlockApi();
+			XUSG::Device::SetApi(API::DIRECTX_12);
+		}
+	}
+
+	com_ptr<IDXGIFactory5> factory = nullptr;
+	if (XUSG::Device::GetApi() != API::VULKAN)
+	{
+		auto dxgiFactoryFlags = 0u;
 
 #if defined(_DEBUG)
-	// Enable the debug layer (requires the Graphics Tools "optional feature").
-	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
-	{
-		ComPtr<ID3D12Debug1> debugController;
-		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+		// Enable the debug layer (requires the Graphics Tools "optional feature").
+		// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 		{
-			debugController->EnableDebugLayer();
-			//debugController->SetEnableGPUBasedValidation(TRUE);
+			com_ptr<ID3D12Debug1> debugController = nullptr;
+			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+			{
+				debugController->EnableDebugLayer();
+				//debugController->SetEnableGPUBasedValidation(TRUE);
 
-			// Enable additional debug layers.
-			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+				// Enable additional debug layers.
+				dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+			}
 		}
-	}
 #endif
 
-	com_ptr<IDXGIFactory5> factory;
-	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
+		ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
-	DXGI_ADAPTER_DESC1 dxgiAdapterDesc;
-	com_ptr<IDXGIAdapter1> dxgiAdapter;
-	const auto createDeviceFlags = EnableRootDescriptorsInShaderRecords;
-	const auto useUMA = m_deviceType == DEVICE_UMA;
-	const auto useWARP = m_deviceType == DEVICE_WARP;
-	auto checkUMA = true, checkWARP = true;
-	auto hr = DXGI_ERROR_NOT_FOUND;
-	for (uint8_t n = 0; n < 3; ++n)
-	{
-		if (FAILED(hr)) hr = DXGI_ERROR_UNSUPPORTED;
-		for (auto i = 0u; hr == DXGI_ERROR_UNSUPPORTED; ++i)
+		DXGI_ADAPTER_DESC1 dxgiAdapterDesc;
+		com_ptr<IDXGIAdapter1> dxgiAdapter = nullptr;
+		const auto createDeviceFlags = EnableRootDescriptorsInShaderRecords;
+		const auto useUMA = m_deviceType == DEVICE_UMA;
+		const auto useWARP = m_deviceType == DEVICE_WARP;
+		auto checkUMA = true, checkWARP = true;
+		auto hr = DXGI_ERROR_NOT_FOUND;
+		for (uint8_t n = 0; n < 3; ++n)
 		{
-			dxgiAdapter = nullptr;
-			hr = factory->EnumAdapters1(i, &dxgiAdapter);
-
-			if (SUCCEEDED(hr) && dxgiAdapter)
+			if (FAILED(hr)) hr = DXGI_ERROR_UNSUPPORTED;
+			for (auto i = 0u; hr == DXGI_ERROR_UNSUPPORTED; ++i)
 			{
-				EnableDirectXRaytracing(dxgiAdapter.get());
+				dxgiAdapter = nullptr;
+				hr = factory->EnumAdapters1(i, dxgiAdapter.put());
 
-				dxgiAdapter->GetDesc1(&dxgiAdapterDesc);
-				if (checkWARP) hr = dxgiAdapterDesc.VendorId == 0x1414 && dxgiAdapterDesc.DeviceId == 0x8c ?
-					(useWARP ? hr : DXGI_ERROR_UNSUPPORTED) : (useWARP ? DXGI_ERROR_UNSUPPORTED : hr);
-			}
-
-			if (SUCCEEDED(hr))
-			{
-				m_device = RayTracing::Device::MakeUnique();
-				if (SUCCEEDED(m_device->Create(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0)) && checkUMA)
+				if (SUCCEEDED(hr) && dxgiAdapter)
 				{
-					D3D12_FEATURE_DATA_ARCHITECTURE feature = {};
-					const auto pDevice = static_cast<ID3D12Device*>(m_device->GetHandle());
-					if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &feature, sizeof(feature))))
-						hr = feature.UMA ? (useUMA ? hr : DXGI_ERROR_UNSUPPORTED) : (useUMA ? DXGI_ERROR_UNSUPPORTED : hr);
+					EnableDirectXRaytracing(dxgiAdapter.get());
+
+					dxgiAdapter->GetDesc1(&dxgiAdapterDesc);
+					if (checkWARP) hr = dxgiAdapterDesc.VendorId == 0x1414 && dxgiAdapterDesc.DeviceId == 0x8c ?
+						(useWARP ? hr : DXGI_ERROR_UNSUPPORTED) : (useWARP ? DXGI_ERROR_UNSUPPORTED : hr);
 				}
+
+				if (SUCCEEDED(hr))
+				{
+					m_device = RayTracing::Device::MakeUnique();
+					if (SUCCEEDED(m_device->Create(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0, L"D3D12Device")) && checkUMA)
+					{
+						D3D12_FEATURE_DATA_ARCHITECTURE feature = {};
+						const auto pDevice = static_cast<ID3D12Device*>(m_device->GetNativeHandle());
+						if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &feature, sizeof(feature))))
+							hr = feature.UMA ? (useUMA ? hr : DXGI_ERROR_UNSUPPORTED) : (useUMA ? DXGI_ERROR_UNSUPPORTED : hr);
+					}
+				}
+
+				if (SUCCEEDED(hr)) hr = m_device->CreateInterface(createDeviceFlags) ? hr : DXGI_ERROR_UNSUPPORTED;
 			}
 
-			if (SUCCEEDED(hr)) hr = m_device->CreateInterface(createDeviceFlags) ? hr : DXGI_ERROR_UNSUPPORTED;
+			checkUMA = false;
+			if (n) checkWARP = false;
 		}
 
-		checkUMA = false;
-		if (n) checkWARP = false;
+		m_title += L" (DirectX 12)";
+		if (dxgiAdapterDesc.VendorId == 0x1414 && dxgiAdapterDesc.DeviceId == 0x8c) m_title += L" (WARP)";
+		else if (dxgiAdapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) m_title += L" (Software)";
+		else m_title += wstring(L" - ") + dxgiAdapterDesc.Description;
+		ThrowIfFailed(hr);
 	}
 
-	if (dxgiAdapterDesc.VendorId == 0x1414 && dxgiAdapterDesc.DeviceId == 0x8c) m_title += L" (WARP)";
-	else if (dxgiAdapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) m_title += L" (Software)";
-	//else m_title += wstring(L" - ") + dxgiAdapterDesc.Description;
-	ThrowIfFailed(hr);
+	SetWindowText(Win32Application::GetHwnd(), m_title.c_str());
 
 	// Create the command queue.
 	m_commandQueue = CommandQueue::MakeUnique();
 	XUSG_N_RETURN(m_commandQueue->Create(m_device.get(), CommandListType::DIRECT, CommandQueueFlag::NONE,
 		0, 0, L"CommandQueue"), ThrowIfFailed(E_FAIL));
 
+	// Vulkan swapchain creation sends messages to this window. The window has to
+	// be visible first, or the driver blocks the UI thread forever.
+	if (XUSG::Device::GetApi() == API::VULKAN) ShowWindow(Win32Application::GetHwnd(), SW_SHOW);
+
 	// Describe and create the swap chain.
 	m_swapChain = SwapChain::MakeUnique();
-	XUSG_N_RETURN(m_swapChain->Create(factory.get(), Win32Application::GetHwnd(), m_commandQueue->GetHandle(),
+	XUSG_N_RETURN(m_swapChain->Create(factory.get(), Win32Application::GetHwnd(), m_commandQueue->GetNativeHandle(),
 		FrameCount, m_width, m_height, Format::R8G8B8A8_UNORM, SwapChainFlag::ALLOW_TEARING), ThrowIfFailed(E_FAIL));
 
 	// This sample does not support fullscreen transitions.
-	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
+	if (factory) ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
@@ -165,10 +190,12 @@ void RayTracedSPH::LoadPipeline()
 // Load the sample assets.
 void RayTracedSPH::LoadAssets()
 {
-	// Create the command list.
+	// Create the command list (register all frame allocators for Reset).
 	const auto commandList = RayTracing::CommandList::MakeUnique();
+	CommandAllocator* pAllocators[FrameCount];
+	for (uint8_t n = 0; n < FrameCount; ++n) pAllocators[n] = m_commandAllocators[n].get();
 	XUSG_N_RETURN(commandList->Create(m_device.get(), 0, CommandListType::DIRECT,
-		m_commandAllocators[m_frameIndex].get(), nullptr), ThrowIfFailed(E_FAIL));
+		FrameCount, pAllocators, nullptr), ThrowIfFailed(E_FAIL));
 
 	// Create ray tracing interfaces
 	XUSG_N_RETURN(commandList->CreateInterface(), ThrowIfFailed(E_FAIL));
@@ -221,6 +248,12 @@ void RayTracedSPH::LoadAssets()
 // Update frame-based values.
 void RayTracedSPH::OnUpdate()
 {
+	// ShowWindow during startup arrives before the swap chain exists.
+	if (!m_swapChain) return;
+
+	if (XUSG::Device::GetApi() == API::VULKAN)
+		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
 	// Timer
 	static auto time = 0.0, pauseTime = 0.0;
 
@@ -243,6 +276,9 @@ void RayTracedSPH::OnUpdate()
 // Render the scene.
 void RayTracedSPH::OnRender()
 {
+	// ShowWindow during startup arrives before the swap chain exists.
+	if (!m_swapChain) return;
+
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
 
@@ -374,6 +410,7 @@ void RayTracedSPH::ParseCommandLineArgs(wchar_t* argv[], int argc)
 	{
 		if (isArgMatched(i, L"warp")) m_deviceType = DEVICE_WARP;
 		else if (isArgMatched(i, L"uma")) m_deviceType = DEVICE_UMA;
+		else if (isArgMatched(i, L"vulkan") || isArgMatched(i, L"vk")) XUSG::Device::SetApi(API::VULKAN);
 	}
 }
 
@@ -382,14 +419,13 @@ void RayTracedSPH::PopulateCommandList()
 	// Command list allocators can only be reset when the associated 
 	// command lists have finished execution on the GPU; apps should use 
 	// fences to determine GPU execution progress.
-	const auto pCommandAllocator = m_commandAllocators[m_frameIndex].get();
-	XUSG_N_RETURN(pCommandAllocator->Reset(), ThrowIfFailed(E_FAIL));
+	XUSG_N_RETURN(m_commandAllocators[m_frameIndex]->Reset(), ThrowIfFailed(E_FAIL));
 
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
 	const auto pCommandList = m_commandListEZ.get();
-	XUSG_N_RETURN(pCommandList->Reset(pCommandAllocator, nullptr), ThrowIfFailed(E_FAIL));
+	XUSG_N_RETURN(pCommandList->Reset(m_frameIndex, nullptr), ThrowIfFailed(E_FAIL));
 
 	const float clearColor[] = { 0.2f, 0.2f, 0.2f, 0.0f };
 	const auto pRenderTarget = m_renderTargets[m_frameIndex].get();
@@ -459,7 +495,8 @@ void RayTracedSPH::MoveToNextFrame()
 	}
 }
 
-void RayTracedSPH::SaveImage(char const* fileName, Buffer* pImageBuffer, uint32_t w, uint32_t h, uint32_t rowPitch, uint8_t comp)
+void RayTracedSPH::SaveImage(char const* fileName, Buffer* pImageBuffer,
+	uint32_t w, uint32_t h, uint32_t rowPitch, uint8_t comp)
 {
 	assert(comp == 3 || comp == 4);
 	const auto pData = static_cast<const uint8_t*>(pImageBuffer->Map(nullptr));
