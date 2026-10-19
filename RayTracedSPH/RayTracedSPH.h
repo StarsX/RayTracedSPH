@@ -53,6 +53,10 @@ private:
 
 	static const uint8_t FrameCount = FluidEZ::FrameCount;
 
+	// Destroyed last. Queues, allocators, swapchain, and command lists
+	// still call into the device from their destructors.
+	XUSG::RayTracing::Device::uptr m_device;
+
 	// Pipeline objects.
 	XUSG::Viewport			m_viewport;
 	XUSG::RectRange			m_scissorRect;
@@ -63,8 +67,8 @@ private:
 
 	bool m_isDxrSupported;
 
-	XUSG::RayTracing::Device::uptr m_device;
 	XUSG::RenderTarget::uptr m_renderTargets[FrameCount];
+	XUSG::RayTracing::CommandList::uptr m_commandList; // Owns the command buffers. The EZ list only attaches them.
 	XUSG::RayTracing::EZ::CommandList::uptr m_commandListEZ;
 
 	// App resources.

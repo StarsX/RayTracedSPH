@@ -18,7 +18,7 @@ RaytracingAccelerationStructure g_bvhParticles : register(t0, SPACE(AS_SPACE));
 RayDesc GenerateRay(Particle particle)
 {
 	RayDesc ray;
-	ray.Origin = particle.Pos;
+	ray.Origin = particle.Pos.xyz;
 	ray.Direction = float3(0.0.xx, 1.0);
 	ray.TMin = 0.0;
 #if POINT_QUERY
@@ -57,5 +57,5 @@ float3 CalculateParticleDisplacement(float thit)
 	float3 rayPos = WorldRayOrigin();
 	rayPos.z += thit;
 
-	return hitParticle.Pos - rayPos;
+	return hitParticle.Pos.xyz - rayPos;
 }

@@ -5,6 +5,8 @@
 #include "FluidEZ.h"
 #include "SharedConst.h"
 
+#include <cstddef>
+
 using namespace std;
 using namespace DirectX;
 using namespace XUSG;
@@ -54,15 +56,19 @@ struct CBPerFrame
 
 struct Particle
 {
-	XMFLOAT3 Pos;
-	XMFLOAT3 Velocity;
+	XMFLOAT4 Pos;
+	XMFLOAT4 Velocity;
 };
 
 struct ParticleAABB
 {
 	XMFLOAT3 Min;
 	XMFLOAT3 Max;
+	float Pad[2];
 };
+
+static_assert(sizeof(Particle) == 32 && offsetof(Particle, Velocity) == 16, "Particle layout must match the shader");
+static_assert(sizeof(ParticleAABB) == 32 && offsetof(ParticleAABB, Max) == 12, "AABB layout must match the shader");
 
 FluidEZ::FluidEZ() :
 	m_instances()
@@ -205,8 +211,8 @@ bool FluidEZ::createParticleBuffers(RayTracing::EZ::CommandList* pCommandList, v
 		y = INIT_PARTICLE_VOLUME_DIM * (y - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[1];
 		z = INIT_PARTICLE_VOLUME_DIM * (z - 0.5f) + INIT_PARTICLE_VOLUME_CENTER[2];
 
-		particles[i].Pos = XMFLOAT3(x, y, z);
-		particles[i].Velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		particles[i].Pos = XMFLOAT4(x, y, z, 0.0f);
+		particles[i].Velocity = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
 		// AABB
 		particleAABBs[i].Min.x = x - smoothRadius;
@@ -292,21 +298,22 @@ bool FluidEZ::createConstBuffers(RayTracing::EZ::CommandList* pCommandList, vect
 
 bool FluidEZ::createShaders()
 {
+	const auto vulkan = XUSG::Device::GetApi() == API::VULKAN;
 	auto vsIndex = 0u;
 	auto psIndex = 0u;
 	auto csIndex = 0u;
 
-	XUSG_X_RETURN(m_shaders[RT_DENSITY], m_shaderLib->CreateShader(
-		Shader::Stage::CS, csIndex++, L"RTDensity.cso"), false);
-	XUSG_X_RETURN(m_shaders[RT_FORCE], m_shaderLib->CreateShader(
-		Shader::Stage::CS, csIndex++, L"RTForce.cso"), false);
-	XUSG_X_RETURN(m_shaders[CS_INTEGRATE], m_shaderLib->CreateShader(
-		Shader::Stage::CS, csIndex++, L"CSIntegrate.cso"), false);
+	XUSG_X_RETURN(m_shaders[RT_DENSITY], m_shaderLib->CreateShader(Shader::Stage::CS,
+		csIndex++, vulkan ? L"RTDensity.spv" : L"RTDensity.cso"), false);
+	XUSG_X_RETURN(m_shaders[RT_FORCE], m_shaderLib->CreateShader(Shader::Stage::CS,
+		csIndex++, vulkan ? L"RTForce.spv" : L"RTForce.cso"), false);
+	XUSG_X_RETURN(m_shaders[CS_INTEGRATE], m_shaderLib->CreateShader(Shader::Stage::CS,
+		csIndex++, vulkan ? L"CSIntegrate.spv" : L"CSIntegrate.cso"), false);
 
-	XUSG_X_RETURN(m_shaders[VS_DRAW_PARTICLES], m_shaderLib->CreateShader(
-		Shader::Stage::VS, vsIndex++, L"VSDrawParticles.cso"), false);
-	XUSG_X_RETURN(m_shaders[PS_DRAW_PARTICLES], m_shaderLib->CreateShader(
-		Shader::Stage::PS, psIndex++, L"PSDrawParticles.cso"), false);
+	XUSG_X_RETURN(m_shaders[VS_DRAW_PARTICLES], m_shaderLib->CreateShader(Shader::Stage::VS,
+		vsIndex++, vulkan ? L"VSDrawParticles.spv" : L"VSDrawParticles.cso"), false);
+	XUSG_X_RETURN(m_shaders[PS_DRAW_PARTICLES], m_shaderLib->CreateShader(Shader::Stage::PS,
+		psIndex++, vulkan ? L"PSDrawParticles.spv" : L"PSDrawParticles.cso"), false);
 
 	return true;
 }

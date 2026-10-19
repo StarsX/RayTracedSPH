@@ -14,7 +14,7 @@
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-	RayTracedSPH rayTracedSPH(1280, 720, L"DirectX 12 particle-based fluid by ray-tracing EZ");
+	RayTracedSPH rayTracedSPH(1280, 720, L"Particle-based fluid by ray-tracing EZ");
 
 	return Win32Application::Run(&rayTracedSPH, hInstance, nCmdShow);
 }

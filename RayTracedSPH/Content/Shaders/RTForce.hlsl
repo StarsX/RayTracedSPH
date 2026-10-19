@@ -55,7 +55,7 @@ void raygenMain()
 	// Trace the ray.
 	RayPayload payload;
 	payload.Pressure = CalculatePressure(density);
-	payload.Velocity = particle.Velocity;
+	payload.Velocity = particle.Velocity.xyz;
 	payload.Force = 0.0;
 	TraceRay(g_bvhParticles, RAY_FLAG_SKIP_CLOSEST_HIT_SHADER, ~0, 0, 1, 0, ray, payload);
 
@@ -128,7 +128,7 @@ void anyHitMain(inout RayPayload payload, HitAttributes attr)
 	payload.Force += CalculateGradPressure(r, d, payload.Pressure, hitPressure, hitDensity, attr.Disp);
 
 	// Viscosity term
-	payload.Force += CalculateVelocityLaplace(d, payload.Velocity, hitParticle.Velocity, hitDensity);
+	payload.Force += CalculateVelocityLaplace(d, payload.Velocity, hitParticle.Velocity.xyz, hitDensity);
 
 	IgnoreHit();
 }

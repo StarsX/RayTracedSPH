@@ -3,13 +3,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerWorkingDirectory>$(ProjectDir)..\Bin\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-vk</LocalDebuggerCommandArguments>
     <LocalDebuggerCommandArgumentsHistory>-vk|</LocalDebuggerCommandArgumentsHistory>
+    <LocalDebuggerCommandArguments>-vk</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(ProjectDir)..\Bin\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-vk</LocalDebuggerCommandArguments>
     <LocalDebuggerCommandArgumentsHistory>-vk|</LocalDebuggerCommandArgumentsHistory>
   </PropertyGroup>
 </Project>

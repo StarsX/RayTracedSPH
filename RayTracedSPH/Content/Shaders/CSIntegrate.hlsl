@@ -36,7 +36,7 @@ void main(uint DTid : SV_DispatchThreadID)
 	[unroll]
 	for (uint i = 0; i < 6; ++i)
 	{
-		float dist = dot(float4(particle.Pos, 1.0), g_planes[i]);
+		float dist = dot(float4(particle.Pos.xyz, 1.0), g_planes[i]);
 		acceleration += min(dist, 0) * -g_wallStiffness * g_planes[i].xyz;
 	}
 
@@ -44,14 +44,10 @@ void main(uint DTid : SV_DispatchThreadID)
 	acceleration += g_gravity;
 
 	// Integrate
-	particle.Velocity += g_timeStep * acceleration;
-	particle.Pos += g_timeStep * particle.Velocity;
-
-	ParticleAABB aabb;
-	aabb.Min = particle.Pos - g_smoothRadius;
-	aabb.Max = particle.Pos + g_smoothRadius;
+	particle.Velocity.xyz += g_timeStep * acceleration;
+	particle.Pos.xyz += g_timeStep * particle.Velocity.xyz;
 
 	// Update
 	g_rwParticles[DTid] = particle;
-	g_rwParticleAABBs[DTid] = aabb;
+	g_rwParticleAABBs[DTid] = MakeParticleAABB(particle.Pos.xyz, g_smoothRadius);
 }
