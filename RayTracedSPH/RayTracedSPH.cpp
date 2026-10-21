@@ -63,11 +63,7 @@ void RayTracedSPH::LoadPipeline()
 	if (XUSG::Device::GetApi() == API::VULKAN)
 	{
 		m_device = RayTracing::Device::MakeUnique();
-		if (SUCCEEDED((m_device->Create(nullptr, 0, L"VulkanDevice"))))
-		{
-			XUSG_N_RETURN(m_device->CreateInterface(), ThrowIfFailed(E_FAIL));
-			m_title += L" (Vulkan)";
-		}
+		if (SUCCEEDED((m_device->Create(nullptr, 0, L"VulkanDevice")))) m_title += L" (Vulkan)";
 		else
 		{
 			XUSG::Device::UnlockApi();
@@ -125,7 +121,7 @@ void RayTracedSPH::LoadPipeline()
 				if (SUCCEEDED(hr))
 				{
 					m_device = RayTracing::Device::MakeUnique();
-					if (SUCCEEDED(m_device->Create(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0, L"D3D12Device")) && checkUMA)
+					if (SUCCEEDED(m_device->Create(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0, createDeviceFlags, L"D3D12Device")) && checkUMA)
 					{
 						D3D12_FEATURE_DATA_ARCHITECTURE feature = {};
 						const auto pDevice = static_cast<ID3D12Device*>(m_device->GetNativeHandle());
@@ -133,8 +129,6 @@ void RayTracedSPH::LoadPipeline()
 							hr = feature.UMA ? (useUMA ? hr : DXGI_ERROR_UNSUPPORTED) : (useUMA ? DXGI_ERROR_UNSUPPORTED : hr);
 					}
 				}
-
-				if (SUCCEEDED(hr)) hr = m_device->CreateInterface(createDeviceFlags) ? hr : DXGI_ERROR_UNSUPPORTED;
 			}
 
 			checkUMA = false;
@@ -191,20 +185,15 @@ void RayTracedSPH::LoadPipeline()
 void RayTracedSPH::LoadAssets()
 {
 	// Create the command list (register all frame allocators for Reset).
-	// Keep it for the app lifetime: Vulkan Attach copies the command buffers
-	// without taking ownership, and the source destructor frees them.
-	m_commandList = RayTracing::CommandList::MakeUnique();
+	const auto commandList = RayTracing::CommandList::MakeUnique();
 	CommandAllocator* pAllocators[FrameCount];
 	for (uint8_t n = 0; n < FrameCount; ++n) pAllocators[n] = m_commandAllocators[n].get();
-	XUSG_N_RETURN(m_commandList->Create(m_device.get(), 0, CommandListType::DIRECT,
+	XUSG_N_RETURN(commandList->Create(m_device.get(), 0, CommandListType::DIRECT,
 		FrameCount, pAllocators, nullptr), ThrowIfFailed(E_FAIL));
-
-	// Create ray tracing interfaces
-	XUSG_N_RETURN(m_commandList->CreateInterface(), ThrowIfFailed(E_FAIL));
 
 	// Create m_commandListEZ.
 	m_commandListEZ = RayTracing::EZ::CommandList::MakeUnique();
-	XUSG_N_RETURN(m_commandListEZ->Create(m_commandList.get(), 1, 32), ThrowIfFailed(E_FAIL));
+	XUSG_N_RETURN(m_commandListEZ->Create(commandList.get(), 1, 32), ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);
 	m_fluid = make_unique<FluidEZ>();

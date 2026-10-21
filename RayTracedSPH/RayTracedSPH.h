@@ -68,7 +68,6 @@ private:
 	bool m_isDxrSupported;
 
 	XUSG::RenderTarget::uptr m_renderTargets[FrameCount];
-	XUSG::RayTracing::CommandList::uptr m_commandList; // Owns the command buffers. The EZ list only attaches them.
 	XUSG::RayTracing::EZ::CommandList::uptr m_commandListEZ;
 
 	// App resources.
