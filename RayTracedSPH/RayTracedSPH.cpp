@@ -25,6 +25,7 @@ static const float g_zFar = 40.0f;
 RayTracedSPH::RayTracedSPH(uint32_t width, uint32_t height, std::wstring name) :
 	DXFramework(width, height, name),
 	m_isDxrSupported(false),
+	m_useRayQuery(false),
 	m_frameIndex(0),
 	m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
 	m_scissorRect(0, 0, static_cast<long>(width), static_cast<long>(height)),
@@ -142,6 +143,24 @@ void RayTracedSPH::LoadPipeline()
 		ThrowIfFailed(hr);
 	}
 
+	if (m_useRayQuery && XUSG::Device::GetApi() != API::VULKAN)
+	{
+		const auto pDevice = static_cast<ID3D12Device*>(m_device->GetNativeHandle());
+		D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = {};
+		shaderModel.HighestShaderModel = D3D_SHADER_MODEL_6_5;
+		const auto shaderModelOK = SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL,
+			&shaderModel, sizeof(shaderModel))) && shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_5;
+		D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5 = {};
+		const auto raytracingTierOK = SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5,
+			&options5, sizeof(options5))) && options5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1;
+		if (!shaderModelOK || !raytracingTierOK)
+		{
+			OutputDebugString(L"Error: Ray query requires shader model 6.5 or above and DirectX Raytracing Tier 1.1.\n\n");
+			ThrowIfFailed(E_FAIL);
+		}
+	}
+
+	if (m_useRayQuery) m_title += L" (Ray Query)";
 	SetWindowText(Win32Application::GetHwnd(), m_title.c_str());
 
 	// Create the command queue.
@@ -198,7 +217,7 @@ void RayTracedSPH::LoadAssets()
 	vector<Resource::uptr> uploaders(0);
 	m_fluid = make_unique<FluidEZ>();
 	XUSG_N_RETURN(m_fluid->Init(m_commandListEZ.get(), m_width, m_height,
-		uploaders), ThrowIfFailed(E_FAIL));
+		uploaders, m_useRayQuery), ThrowIfFailed(E_FAIL));
 
 	// Close the command list and execute it to begin the initial GPU setup.
 	XUSG_N_RETURN(m_commandListEZ->Close(), ThrowIfFailed(E_FAIL));
@@ -402,6 +421,7 @@ void RayTracedSPH::ParseCommandLineArgs(wchar_t* argv[], int argc)
 		if (isArgMatched(i, L"warp")) m_deviceType = DEVICE_WARP;
 		else if (isArgMatched(i, L"uma")) m_deviceType = DEVICE_UMA;
 		else if (isArgMatched(i, L"vulkan") || isArgMatched(i, L"vk")) XUSG::Device::SetApi(API::VULKAN);
+		else if (isArgMatched(i, L"rayquery") || isArgMatched(i, L"rq")) m_useRayQuery = true;
 	}
 }
 

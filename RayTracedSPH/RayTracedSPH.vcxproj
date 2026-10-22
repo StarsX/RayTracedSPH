@@ -106,11 +106,14 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
   </ItemDefinitionGroup>
   <Target Name="CompileSpirv" BeforeTargets="ClCompile" DependsOnTargets="FxCompile">
     <ItemGroup>
-      <SpirvShader Include="@(FxCompile)">
+      <SpirvShader Include="@(FxCompile)" Condition="'%(Filename)' != 'RQDensity' and '%(Filename)' != 'RQForce'">
         <Profile Condition="'%(ShaderType)' == 'Vertex'">vs_6_3</Profile>
         <Profile Condition="'%(ShaderType)' == 'Pixel'">ps_6_3</Profile>
         <Profile Condition="'%(ShaderType)' == 'Compute'">cs_6_3</Profile>
         <Profile Condition="'%(ShaderType)' == 'Library'">lib_6_3</Profile>
+      </SpirvShader>
+      <SpirvShader Include="@(FxCompile)" Condition="'%(Filename)' == 'RQDensity' or '%(Filename)' == 'RQForce'">
+        <Profile>cs_6_5</Profile>
       </SpirvShader>
     </ItemGroup>
     <Exec Command="&quot;$(VULKAN_SDK)\Bin\dxc.exe&quot; -spirv -T %(SpirvShader.Profile) -E main -fspv-target-env=vulkan1.2 -all-resources-bound -Zpc -fvk-use-dx-position-w -enable-16bit-types -Wno-conversion -D XUSG_SPIRV=1 -I &quot;$(ProjectDir)Shaders&quot; -I &quot;$(ProjectDir)Content&quot; -Fo &quot;$(OutDir)%(SpirvShader.Filename).spv&quot; &quot;%(SpirvShader.FullPath)&quot;" />
@@ -175,6 +178,18 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
+    <FxCompile Include="Content\Shaders\RQDensity.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\RQForce.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Content\Shaders\RTDensity.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
@@ -208,6 +223,7 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
   </ItemGroup>
   <ItemGroup>
     <None Include="Content\Shaders\Common.hlsli" />
+    <None Include="Content\Shaders\RQCommon.hlsli" />
     <None Include="Content\Shaders\RTCommon.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

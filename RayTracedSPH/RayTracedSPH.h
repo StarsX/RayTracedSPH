@@ -66,6 +66,7 @@ private:
 	XUSG::CommandQueue::uptr		m_commandQueue;
 
 	bool m_isDxrSupported;
+	bool m_useRayQuery;
 
 	XUSG::RenderTarget::uptr m_renderTargets[FrameCount];
 	XUSG::RayTracing::EZ::CommandList::uptr m_commandListEZ;

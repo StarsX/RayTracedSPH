@@ -81,13 +81,14 @@ FluidEZ::~FluidEZ()
 }
 
 bool FluidEZ::Init(RayTracing::EZ::CommandList* pCommandList, uint32_t width, uint32_t height,
-	vector<Resource::uptr>& uploaders, uint32_t numParticles)
+	vector<Resource::uptr>& uploaders, bool useRayQuery, uint32_t numParticles)
 {
 	const auto pDevice = pCommandList->GetRTDevice();
 
 	m_viewport.x = static_cast<float>(width);
 	m_viewport.y = static_cast<float>(height);
 	m_numParticles = numParticles;
+	m_useRayQuery = useRayQuery;
 
 	// Create resources with data upload
 	createParticleBuffers(pCommandList, uploaders);
@@ -309,6 +310,13 @@ bool FluidEZ::createShaders()
 		csIndex++, vulkan ? L"RTForce.spv" : L"RTForce.cso"), false);
 	XUSG_X_RETURN(m_shaders[CS_INTEGRATE], m_shaderLib->CreateShader(Shader::Stage::CS,
 		csIndex++, vulkan ? L"CSIntegrate.spv" : L"CSIntegrate.cso"), false);
+	if (m_useRayQuery)
+	{
+		XUSG_X_RETURN(m_shaders[RQ_DENSITY], m_shaderLib->CreateShader(Shader::Stage::CS,
+			csIndex++, vulkan ? L"RQDensity.spv" : L"RQDensity.cso"), false);
+		XUSG_X_RETURN(m_shaders[RQ_FORCE], m_shaderLib->CreateShader(Shader::Stage::CS,
+			csIndex++, vulkan ? L"RQForce.spv" : L"RQForce.cso"), false);
+	}
 
 	XUSG_X_RETURN(m_shaders[VS_DRAW_PARTICLES], m_shaderLib->CreateShader(Shader::Stage::VS,
 		vsIndex++, vulkan ? L"VSDrawParticles.spv" : L"VSDrawParticles.cso"), false);
@@ -359,11 +367,15 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 	const auto uavSpace = vulkan ? 2u : 0u;
 
 	// Set pipeline state
-	static const wchar_t* shaderNames[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
-	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_DENSITY], static_cast<uint32_t>(size(shaderNames)), shaderNames);
-	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL_PRIMITIVE);
-	pCommandList->RTSetShaderConfig(sizeof(float), sizeof(float));
-	pCommandList->RTSetMaxRecursionDepth(1);
+	if (m_useRayQuery) pCommandList->SetComputeShader(m_shaders[RQ_DENSITY]);
+	else
+	{
+		static const wchar_t* shaderNames[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
+		pCommandList->RTSetShaderLibrary(0, m_shaders[RT_DENSITY], static_cast<uint32_t>(size(shaderNames)), shaderNames);
+		pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL_PRIMITIVE);
+		pCommandList->RTSetShaderConfig(sizeof(float), sizeof(float));
+		pCommandList->RTSetMaxRecursionDepth(1);
+	}
 
 	// Set UAV
 	const auto uav = XUSG::EZ::GetUAV(m_densityBuffer.get());
@@ -374,7 +386,8 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 	// Dispatch command
-	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
+	if (m_useRayQuery) pCommandList->Dispatch(XUSG_DIV_UP(m_numParticles, GROUP_SIZE), 1, 1);
+	else pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
 }
 
 void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
@@ -384,11 +397,15 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 	const auto uavSpace = vulkan ? 2u : 0u;
 
 	// Set pipeline state
-	static const void* shaders[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
-	pCommandList->RTSetShaderLibrary(0, m_shaders[RT_FORCE]);//, static_cast<uint32_t>(size(shaders)), shaders);
-	pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL_PRIMITIVE);
-	pCommandList->RTSetShaderConfig(sizeof(XMFLOAT4[2]), sizeof(XMFLOAT4));
-	pCommandList->RTSetMaxRecursionDepth(1);
+	if (m_useRayQuery) pCommandList->SetComputeShader(m_shaders[RQ_FORCE]);
+	else
+	{
+		static const void* shaders[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
+		pCommandList->RTSetShaderLibrary(0, m_shaders[RT_FORCE]);//, static_cast<uint32_t>(size(shaders)), shaders);
+		pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL_PRIMITIVE);
+		pCommandList->RTSetShaderConfig(sizeof(XMFLOAT4[2]), sizeof(XMFLOAT4));
+		pCommandList->RTSetMaxRecursionDepth(1);
+	}
 
 	// Set UAV
 	const auto uav = XUSG::EZ::GetUAV(m_accelerationBuffer.get());
@@ -403,7 +420,8 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs, srvSpace);
 
 	// Dispatch command
-	pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
+	if (m_useRayQuery) pCommandList->Dispatch(XUSG_DIV_UP(m_numParticles, GROUP_SIZE), 1, 1);
+	else pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
 }
 
 void FluidEZ::integrate(RayTracing::EZ::CommandList* pCommandList)

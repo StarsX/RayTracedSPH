@@ -115,6 +115,9 @@
     <None Include="Content\Shaders\Common.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Content\Shaders\RQCommon.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
     <None Include="Content\Shaders\RTCommon.hlsli">
       <Filter>Shaders</Filter>
     </None>
@@ -127,6 +130,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Content\Shaders\VSDrawParticles.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\RQDensity.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\RQForce.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Content\Shaders\RTDensity.hlsl">
