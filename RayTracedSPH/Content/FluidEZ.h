@@ -55,7 +55,6 @@ protected:
 	static const wchar_t* RaygenShaderName;
 	static const wchar_t* IntersectionShaderName;
 	static const wchar_t* AnyHitShaderName;
-	static const wchar_t* MissShaderName;
 
 	enum ShaderIndex : uint8_t
 	{

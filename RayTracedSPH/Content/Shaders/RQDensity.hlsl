@@ -3,25 +3,7 @@
 //--------------------------------------------------------------------------------------
 
 #include "RQCommon.hlsli"
-
-//--------------------------------------------------------------------------------------
-// Buffer
-//--------------------------------------------------------------------------------------
-[[vk::binding(0, 2)]]
-RWBuffer<float> g_rwDensities : register(u0);
-
-//--------------------------------------------------------------------------------------
-// Density calculation
-//--------------------------------------------------------------------------------------
-float CalculateDensity(float r_sq)
-{
-	// Implements this equation:
-	// W_poly6(r, h) = 315 / (64 * pi * h^9) * (h^2 - r^2)^3
-	// g_densityCoef = particleMass * 315.0f / (64.0f * PI * g_smoothRadius^9)
-	const float d_sq = g_smoothRadius * g_smoothRadius - r_sq;
-
-	return g_densityCoef * d_sq * d_sq * d_sq;
-}
+#include "Density.hlsli"
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
@@ -45,8 +27,7 @@ void main(uint DTid : SV_DispatchThreadID)
 				query.CandidateObjectRayOrigin(), thit);
 			const float r_sq = dot(disp, disp);
 
-			if (r_sq < g_smoothRadius * g_smoothRadius)
-				density += CalculateDensity(r_sq);
+			if (IsDensityNeighbor(r_sq)) density = AddDensity(density, r_sq);
 		}
 	}
 

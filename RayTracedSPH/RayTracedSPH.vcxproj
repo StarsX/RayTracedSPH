@@ -223,6 +223,8 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
   </ItemGroup>
   <ItemGroup>
     <None Include="Content\Shaders\Common.hlsli" />
+    <None Include="Content\Shaders\Density.hlsli" />
+    <None Include="Content\Shaders\Force.hlsli" />
     <None Include="Content\Shaders\RQCommon.hlsli" />
     <None Include="Content\Shaders\RTCommon.hlsli" />
   </ItemGroup>

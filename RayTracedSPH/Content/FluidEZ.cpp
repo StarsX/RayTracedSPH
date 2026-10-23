@@ -16,7 +16,6 @@ const wchar_t* FluidEZ::HitGroupName = L"hitGroup";
 const wchar_t* FluidEZ::RaygenShaderName = L"raygenMain";
 const wchar_t* FluidEZ::IntersectionShaderName = L"intersectionMain";
 const wchar_t* FluidEZ::AnyHitShaderName = L"anyHitMain";
-const wchar_t* FluidEZ::MissShaderName = L"missMain";
 
 const float POOL_VOLUME_DIM = 1.0f;
 const float POOL_SPACE_DIVISION = 50.0f;
@@ -370,7 +369,7 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 	if (m_useRayQuery) pCommandList->SetComputeShader(m_shaders[RQ_DENSITY]);
 	else
 	{
-		static const wchar_t* shaderNames[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
+		static const wchar_t* shaderNames[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName };
 		pCommandList->RTSetShaderLibrary(0, m_shaders[RT_DENSITY], static_cast<uint32_t>(size(shaderNames)), shaderNames);
 		pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL_PRIMITIVE);
 		pCommandList->RTSetShaderConfig(sizeof(float), sizeof(float));
@@ -387,7 +386,7 @@ void FluidEZ::computeDensity(RayTracing::EZ::CommandList* pCommandList)
 
 	// Dispatch command
 	if (m_useRayQuery) pCommandList->Dispatch(XUSG_DIV_UP(m_numParticles, GROUP_SIZE), 1, 1);
-	else pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
+	else pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, nullptr, 1);
 }
 
 void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
@@ -400,7 +399,7 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 	if (m_useRayQuery) pCommandList->SetComputeShader(m_shaders[RQ_FORCE]);
 	else
 	{
-		static const void* shaders[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName, MissShaderName };
+		static const void* shaders[] = { RaygenShaderName, IntersectionShaderName, AnyHitShaderName };
 		pCommandList->RTSetShaderLibrary(0, m_shaders[RT_FORCE]);//, static_cast<uint32_t>(size(shaders)), shaders);
 		pCommandList->RTSetHitGroup(0, HitGroupName, nullptr, AnyHitShaderName, IntersectionShaderName, HitGroupType::PROCEDURAL_PRIMITIVE);
 		pCommandList->RTSetShaderConfig(sizeof(XMFLOAT4[2]), sizeof(XMFLOAT4));
@@ -421,7 +420,7 @@ void FluidEZ::computeAcceleration(RayTracing::EZ::CommandList* pCommandList)
 
 	// Dispatch command
 	if (m_useRayQuery) pCommandList->Dispatch(XUSG_DIV_UP(m_numParticles, GROUP_SIZE), 1, 1);
-	else pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, &MissShaderName, 1);
+	else pCommandList->DispatchRays(m_numParticles, 1, 1, RaygenShaderName, nullptr, 1);
 }
 
 void FluidEZ::integrate(RayTracing::EZ::CommandList* pCommandList)
