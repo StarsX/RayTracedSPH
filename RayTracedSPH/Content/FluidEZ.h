@@ -15,7 +15,7 @@ public:
 	virtual ~FluidEZ();
 
 	bool Init(XUSG::RayTracing::EZ::CommandList* pCommandList, uint32_t width, uint32_t height,
-		std::vector<XUSG::Resource::uptr>& uploaders, uint32_t numParticles = 65536);
+		std::vector<XUSG::Resource::uptr>& uploaders, bool useRayQuery, uint32_t numParticles = 65536);
 
 	void UpdateFrame(uint8_t frameIndex, float timeStep, DirectX::CXMMATRIX viewProj, DirectX::CXMVECTOR viewY);
 	void Render(XUSG::RayTracing::EZ::CommandList* pCommandList, uint8_t frameIndex,
@@ -55,12 +55,13 @@ protected:
 	static const wchar_t* RaygenShaderName;
 	static const wchar_t* IntersectionShaderName;
 	static const wchar_t* AnyHitShaderName;
-	static const wchar_t* MissShaderName;
 
 	enum ShaderIndex : uint8_t
 	{
 		RT_DENSITY,
 		RT_FORCE,
+		RQ_DENSITY,
+		RQ_FORCE,
 		CS_INTEGRATE,
 		VS_DRAW_PARTICLES,
 		PS_DRAW_PARTICLES,
@@ -74,4 +75,5 @@ protected:
 	DirectX::XMFLOAT2		m_viewport;
 
 	uint32_t				m_numParticles;
+	bool					m_useRayQuery;
 };

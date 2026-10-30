@@ -3,6 +3,7 @@
 //--------------------------------------------------------------------------------------
 
 #include "RTCommon.hlsli"
+#include "Density.hlsli"
 
 //--------------------------------------------------------------------------------------
 // Structs
@@ -16,11 +17,6 @@ struct HitAttributes
 {
 	float R_sq;
 };
-
-//--------------------------------------------------------------------------------------
-// Buffer
-//--------------------------------------------------------------------------------------
-RWBuffer<float> g_rwDensities : register (u0);
 
 //--------------------------------------------------------------------------------------
 // Ray generation
@@ -50,24 +46,11 @@ void intersectionMain()
 	const float3 disp = CalculateParticleDisplacement(thit);
 	const float r_sq = dot(disp, disp);
 
-	if (r_sq < g_smoothRadius * g_smoothRadius)
+	if (IsDensityNeighbor(r_sq))
 	{
 		const HitAttributes attr = { r_sq };
 		ReportHit(thit, /*hitKind*/ 0, attr);
 	}
-}
-
-//--------------------------------------------------------------------------------------
-// Density calculation
-//--------------------------------------------------------------------------------------
-float CalculateDensity(float r_sq)
-{
-	// Implements this equation:
-	// W_poly6(r, h) = 315 / (64 * pi * h^9) * (h^2 - r^2)^3
-	// g_densityCoef = particleMass * 315.0f / (64.0f * PI * g_smoothRadius^9)
-	const float d_sq = g_smoothRadius * g_smoothRadius - r_sq;
-
-	return g_densityCoef * d_sq * d_sq * d_sq;
 }
 
 //--------------------------------------------------------------------------------------
@@ -76,15 +59,7 @@ float CalculateDensity(float r_sq)
 [shader("anyhit")]
 void anyHitMain(inout RayPayload payload, HitAttributes attr)
 {
-	payload.Density += CalculateDensity(attr.R_sq);
+	payload.Density = AddDensity(payload.Density, attr.R_sq);
 
 	IgnoreHit();
-}
-
-//--------------------------------------------------------------------------------------
-// Ray miss
-//--------------------------------------------------------------------------------------
-[shader("miss")]
-void missMain(inout RayPayload payload)
-{
 }
