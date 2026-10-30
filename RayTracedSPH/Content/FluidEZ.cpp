@@ -299,28 +299,25 @@ bool FluidEZ::createConstBuffers(RayTracing::EZ::CommandList* pCommandList, vect
 bool FluidEZ::createShaders()
 {
 	const auto vulkan = XUSG::Device::GetApi() == API::VULKAN;
+	const auto shaderFile = [vulkan](const wchar_t* name)
+	{
+		return wstring(name) + (vulkan ? L".spv" : L".cso");
+	};
 	auto vsIndex = 0u;
 	auto psIndex = 0u;
 	auto csIndex = 0u;
 
-	XUSG_X_RETURN(m_shaders[RT_DENSITY], m_shaderLib->CreateShader(Shader::Stage::CS,
-		csIndex++, vulkan ? L"RTDensity.spv" : L"RTDensity.cso"), false);
-	XUSG_X_RETURN(m_shaders[RT_FORCE], m_shaderLib->CreateShader(Shader::Stage::CS,
-		csIndex++, vulkan ? L"RTForce.spv" : L"RTForce.cso"), false);
-	XUSG_X_RETURN(m_shaders[CS_INTEGRATE], m_shaderLib->CreateShader(Shader::Stage::CS,
-		csIndex++, vulkan ? L"CSIntegrate.spv" : L"CSIntegrate.cso"), false);
+	XUSG_X_RETURN(m_shaders[RT_DENSITY], m_shaderLib->CreateShader(Shader::Stage::CS, csIndex++, shaderFile(L"RTDensity").c_str()), false);
+	XUSG_X_RETURN(m_shaders[RT_FORCE], m_shaderLib->CreateShader(Shader::Stage::CS, csIndex++, shaderFile(L"RTForce").c_str()), false);
+	XUSG_X_RETURN(m_shaders[CS_INTEGRATE], m_shaderLib->CreateShader(Shader::Stage::CS, csIndex++, shaderFile(L"CSIntegrate").c_str()), false);
 	if (m_useRayQuery)
 	{
-		XUSG_X_RETURN(m_shaders[RQ_DENSITY], m_shaderLib->CreateShader(Shader::Stage::CS,
-			csIndex++, vulkan ? L"RQDensity.spv" : L"RQDensity.cso"), false);
-		XUSG_X_RETURN(m_shaders[RQ_FORCE], m_shaderLib->CreateShader(Shader::Stage::CS,
-			csIndex++, vulkan ? L"RQForce.spv" : L"RQForce.cso"), false);
+		XUSG_X_RETURN(m_shaders[RQ_DENSITY], m_shaderLib->CreateShader(Shader::Stage::CS, csIndex++, shaderFile(L"RQDensity").c_str()), false);
+		XUSG_X_RETURN(m_shaders[RQ_FORCE], m_shaderLib->CreateShader(Shader::Stage::CS, csIndex++, shaderFile(L"RQForce").c_str()), false);
 	}
 
-	XUSG_X_RETURN(m_shaders[VS_DRAW_PARTICLES], m_shaderLib->CreateShader(Shader::Stage::VS,
-		vsIndex++, vulkan ? L"VSDrawParticles.spv" : L"VSDrawParticles.cso"), false);
-	XUSG_X_RETURN(m_shaders[PS_DRAW_PARTICLES], m_shaderLib->CreateShader(Shader::Stage::PS,
-		psIndex++, vulkan ? L"PSDrawParticles.spv" : L"PSDrawParticles.cso"), false);
+	XUSG_X_RETURN(m_shaders[VS_DRAW_PARTICLES], m_shaderLib->CreateShader(Shader::Stage::VS, vsIndex++, shaderFile(L"VSDrawParticles").c_str()), false);
+	XUSG_X_RETURN(m_shaders[PS_DRAW_PARTICLES], m_shaderLib->CreateShader(Shader::Stage::PS, psIndex++, shaderFile(L"PSDrawParticles").c_str()), false);
 
 	return true;
 }
